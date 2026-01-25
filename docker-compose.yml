@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  copart-scraper:
+    build: .
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+    volumes:
+      - ./logs:/app/logs
+    shm_size: '2gb'  # Increase shared memory for Chrome

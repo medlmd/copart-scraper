@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copart Toyota Corolla Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .dashboard {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-size: 1.2em;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        thead {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
+        tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .badge-salvage {
+            background: #fee;
+            color: #c33;
+        }
+
+        .badge-location {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge-countdown {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #c33;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .refresh-btn {
+                width: 100%;
+            }
+
+            table {
+                font-size: 0.9em;
+            }
+
+            th, td {
+                padding: 10px 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚗 Copart Toyota Corolla Dashboard</h1>
+            <p>2017-2023 • Salvage • MD, NJ, DC, GA, MI, OH Only</p>
+        </div>
+
+        <div class="dashboard">
+            <div class="controls">
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Vehicles</div>
+                        <div class="stat-value" id="totalCount">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Last Updated</div>
+                        <div class="stat-value" id="lastUpdated" style="font-size: 1em;">Never</div>
+                    </div>
+                </div>
+                <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
+                    🔄 Refresh Data
+                </button>
+            </div>
+
+            <div id="content">
+                <div class="empty-state">
+                    <h2>No Data Available</h2>
+                    <p>Click "Refresh Data" to load Toyota Corolla vehicles</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isLoading = false;
+
+        function formatDate() {
+            const now = new Date();
+            return now.toLocaleString();
+        }
+
+        function refreshData() {
+            if (isLoading) return;
+            
+            isLoading = true;
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '⏳ Loading...';
+
+            const content = document.getElementById('content');
+            content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Scraping data from Copart...<br><small>This may take 1-2 minutes</small></p></div>';
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 300000);
+
+            fetch('/api/refresh', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                signal: controller.signal
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                isLoading = false;
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 Refresh Data';
+
+                if (data.success) {
+                    displayData(data.data);
+                    document.getElementById('totalCount').textContent = data.count;
+                    document.getElementById('lastUpdated').textContent = formatDate();
+                } else {
+                    content.innerHTML = `<div class="error"><strong>Error:</strong> ${data.error || 'Failed to fetch data'}</div>`;
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                isLoading = false;
+                refreshBtn.disabled = false;
+                refreshBtn.textContent = '🔄 Refresh Data';
+                if (error.name === 'AbortError') {
+                    content.innerHTML = `<div class="error"><strong>Timeout:</strong> Scraping took too long. Try again.</div>`;
+                } else {
+                    content.innerHTML = `<div class="error"><strong>Error:</strong> ${error.message}</div>`;
+                }
+            });
+        }
+
+        function displayData(vehicles) {
+            const content = document.getElementById('content');
+            
+            if (!vehicles || vehicles.length === 0) {
+                content.innerHTML = '<div class="empty-state"><h2>No Vehicles Found</h2><p>No Toyota Corolla vehicles match the criteria</p></div>';
+                return;
+            }
+
+            let html = '<div class="table-container"><table><thead><tr>';
+            html += '<th>Lot #</th>';
+            html += '<th>Year</th>';
+            html += '<th>Make/Model</th>';
+            html += '<th>Damage</th>';
+            html += '<th>Location</th>';
+            html += '<th>Odometer</th>';
+            html += '<th>Current Bid</th>';
+            html += '<th>Auction Countdown</th>';
+            html += '<th>Link</th>';
+            html += '</tr></thead><tbody>';
+
+            vehicles.forEach(vehicle => {
+                html += '<tr>';
+                html += `<td>${vehicle.lot_number || 'N/A'}</td>`;
+                html += `<td>${vehicle.year || 'N/A'}</td>`;
+                html += `<td>${vehicle.make || ''} ${vehicle.model || ''}</td>`;
+                html += `<td><span class="badge badge-salvage">${vehicle.damage || 'N/A'}</span></td>`;
+                html += `<td><span class="badge badge-location">${vehicle.location || 'N/A'}</span></td>`;
+                html += `<td>${vehicle.odometer ? vehicle.odometer + ' mi' : 'N/A'}</td>`;
+                html += `<td>${vehicle.current_bid || 'N/A'}</td>`;
+                html += `<td><span class="badge badge-countdown">${vehicle.auction_countdown || 'N/A'}</span></td>`;
+                html += `<td><a href="${vehicle.url || '#'}" target="_blank" class="link">View</a></td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+            content.innerHTML = html;
+        }
+
+        // Load data on page load
+        window.addEventListener('load', () => {
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.data && data.data.length > 0) {
+                        displayData(data.data);
+                        document.getElementById('totalCount').textContent = data.count;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading initial data:', error);
+                });
+        });
+    </script>
+</body>
+</html>

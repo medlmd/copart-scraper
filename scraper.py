@@ -20,7 +20,7 @@ class CopartScraper:
     
     def __init__(self):
         self.driver = None
-        self.setup_driver()
+        # Don't initialize driver on creation - do it lazily when needed
     
     def setup_driver(self):
         """Setup Chrome driver with Cloudflare bypass options"""

@@ -34,8 +34,10 @@ def refresh_data():
                 'error': 'Scraper not available. Chrome/ChromeDriver may not be installed on this platform.'
             }), 500
         
+        print("Starting scrape from Flask API...")
         # Scrape new data (maximum possible)
         vehicles = scrape_func(limit=1000)  # High limit to scrape as many as possible
+        print(f"Scrape completed. Found {len(vehicles)} vehicles")
         
         # Update cached data
         global cached_data
@@ -49,6 +51,7 @@ def refresh_data():
     except Exception as e:
         import traceback
         error_msg = str(e)
+        print(f"ERROR in refresh_data: {error_msg}")
         traceback.print_exc()
         return jsonify({
             'success': False,

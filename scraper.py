@@ -85,6 +85,14 @@ class CopartScraper:
         """Extract all vehicle data directly from search results page (MUCH FASTER)"""
         vehicles = []
         
+        # Initialize driver if not already done
+        if not self.driver:
+            try:
+                self.setup_driver()
+            except Exception as e:
+                print(f"Error initializing ChromeDriver: {e}")
+                return vehicles
+        
         if not self.driver:
             return vehicles
         

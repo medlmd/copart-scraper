@@ -2,12 +2,21 @@
 Flask application for Copart Toyota Corolla Dashboard
 """
 from flask import Flask, render_template, jsonify
-from scraper import scrape_copart_corolla
 
 app = Flask(__name__)
 
 # Store cached data
 cached_data = []
+
+# Lazy import to avoid ChromeDriver initialization on startup
+def get_scraper():
+    """Lazy import of scraper to avoid ChromeDriver issues on startup"""
+    try:
+        from scraper import scrape_copart_corolla
+        return scrape_copart_corolla
+    except Exception as e:
+        print(f"Warning: Could not import scraper: {e}")
+        return None
 
 @app.route('/')
 def index():
@@ -18,8 +27,15 @@ def index():
 def refresh_data():
     """Refresh vehicle data by scraping Copart"""
     try:
+        scrape_func = get_scraper()
+        if not scrape_func:
+            return jsonify({
+                'success': False,
+                'error': 'Scraper not available. Chrome/ChromeDriver may not be installed on this platform.'
+            }), 500
+        
         # Scrape new data (maximum possible)
-        vehicles = scrape_copart_corolla(limit=1000)  # High limit to scrape as many as possible
+        vehicles = scrape_func(limit=1000)  # High limit to scrape as many as possible
         
         # Update cached data
         global cached_data

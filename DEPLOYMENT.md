@@ -107,44 +107,7 @@ pip install gunicorn
 gunicorn -w 4 -b 0.0.0.0:8080 app:app
 ```
 
-### Option 3: Docker Deployment
-
-Create `Dockerfile`:
-```dockerfile
-FROM python:3.9-slim
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    unzip \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Google Chrome
-RUN wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
-EXPOSE 8080
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8080", "app:app"]
-```
-
-Build and run:
-```bash
-docker build -t copart-scraper .
-docker run -p 8080:8080 copart-scraper
-```
-
-### Option 4: Cloud Deployment (AWS, GCP, Azure)
+### Option 3: Cloud Deployment (AWS, GCP, Azure)
 
 #### AWS EC2:
 1. Launch Ubuntu instance (t2.medium or larger)
@@ -153,8 +116,8 @@ docker run -p 8080:8080 copart-scraper
 4. Use systemd service or PM2 for process management
 
 #### Google Cloud Run:
-1. Create `Dockerfile` (see above)
-2. Build and push to Container Registry
+1. Use native Python deployment
+2. Configure with `app.yaml` or similar
 3. Deploy to Cloud Run
 
 #### Heroku:

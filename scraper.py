@@ -123,36 +123,75 @@ class CopartScraper:
             
             # Method 1: Look for table rows with lot data
             table_rows = soup.find_all('tr')
+            method1_count = 0
             for row in table_rows:
                 row_text = row.get_text()
                 # Check if row contains lot number pattern
                 if re.search(r'Lot\s*#\s*:?\s*\d{8}', row_text, re.IGNORECASE) or re.search(r'1-\d{8}', row_text):
                     vehicle_rows.append(row)
+                    method1_count += 1
+            if method1_count > 0:
+                print(f"    Method 1 found {method1_count} rows")
             
             # Method 2: Look for div containers with lot data
             if not vehicle_rows:
                 lot_containers = soup.find_all(['div', 'section'], attrs={'data-lot-number': True})
                 vehicle_rows.extend(lot_containers)
+                if lot_containers:
+                    print(f"    Method 2 found {len(lot_containers)} containers")
             
-            # Method 3: Look for elements with lot links
+            # Method 3: Look for elements with lot links - use link itself (href contains all data)
+            if not vehicle_rows:
+                print(f"    Trying Method 3: Looking for lot links...")
+                lot_links = soup.find_all('a', href=re.compile(r'/lot/\d+'))
+                print(f"    Found {len(lot_links)} lot links in page")
+                seen_lots = set()
+                for link in lot_links:
+                    # Extract lot number from href
+                    href = link.get('href', '')
+                    lot_match = re.search(r'/lot/(\d+)', href)
+                    if lot_match:
+                        lot_num = lot_match.group(1)
+                        if lot_num not in seen_lots:  # Avoid duplicates
+                            seen_lots.add(lot_num)
+                            # Use the link itself - it has the href with lot, year, location data
+                            vehicle_rows.append(link)
+                print(f"    Method 3 added {len(vehicle_rows)} unique links to vehicle_rows")
+            
+            # Method 4: Extract directly from lot links - use link itself as row element
             if not vehicle_rows:
                 lot_links = soup.find_all('a', href=re.compile(r'/lot/\d+'))
-                for link in lot_links:
-                    parent = link.find_parent(['tr', 'div', 'section'])
-                    if parent and parent not in vehicle_rows:
-                        vehicle_rows.append(parent)
+                seen_lots = set()
+                for link in lot_links[:limit*2]:  # Get more links to account for duplicates
+                    href = link.get('href', '')
+                    lot_match = re.search(r'/lot/(\d+)', href)
+                    if lot_match:
+                        lot_num = lot_match.group(1)
+                        if lot_num not in seen_lots:
+                            seen_lots.add(lot_num)
+                            # Use the link itself as the row element (it contains the href with all data)
+                            vehicle_rows.append(link)
             
             print(f"  Found {len(vehicle_rows)} vehicle rows from {description}")
             
             # Extract data from each row
             for i, row in enumerate(vehicle_rows[:limit], 1):
                 try:
+                    # Debug: check what type of element we have
+                    if i <= 3:  # Only debug first 3
+                        if hasattr(row, 'name'):
+                            print(f"    Row {i}: {row.name}, href: {row.get('href', 'N/A')[:50] if row.name == 'a' else 'N/A'}")
+                    
                     vehicle = self._extract_vehicle_from_row(row, page_source)
-                    if vehicle:
+                    if vehicle and vehicle.get("lot_number") != "N/A":
                         vehicles.append(vehicle)
                         if len(vehicles) >= limit:
                             break
+                    elif vehicle:
+                        if i <= 3:
+                            print(f"    Row {i}: Extracted but lot_number is N/A")
                 except Exception as e:
+                    print(f"  Error extracting vehicle {i}: {str(e)}")
                     continue
             
             print(f"  Extracted {len(vehicles)} vehicles from {description}")
@@ -186,14 +225,63 @@ class CopartScraper:
         row_text = row_element.get_text()
         row_html = str(row_element)
         
-        # Extract Lot Number (remove "1-" prefix)
-        lot_match = re.search(r'Lot\s*#\s*:?\s*(\d{8})', row_text, re.IGNORECASE)
-        if not lot_match:
-            lot_match = re.search(r'(?:1-)?(\d{8})', row_text)
-        if lot_match:
-            lot_num = lot_match.group(1)  # Get just the 8 digits, no "1-" prefix
-            vehicle["lot_number"] = lot_num
-            vehicle["url"] = f"https://www.copart.com/lot/{lot_num}"
+        # Extract Lot Number and other data from href (IMPROVED - href contains lot, year, location)
+        # Check if row_element itself is a link
+        href = None
+        if row_element.name == 'a' and row_element.get('href'):
+            href = row_element.get('href')
+        else:
+            # Otherwise, look for links in the row
+            lot_links = row_element.find_all('a', href=re.compile(r'/lot/\d+'))
+            if lot_links:
+                href = lot_links[0].get('href', '')
+        
+        if href:
+            # Extract lot number from href: /lot/97008115/...
+            lot_match = re.search(r'/lot/(\d+)', href)
+            if lot_match:
+                lot_num = lot_match.group(1)
+                vehicle["lot_number"] = lot_num
+                vehicle["url"] = f"https://www.copart.com/lot/{lot_num}"
+                
+                # Extract year from href: ...-2017-toyota-...
+                year_match = re.search(r'-(\d{4})-', href)
+                if year_match:
+                    try:
+                        vehicle["year"] = int(year_match.group(1))
+                    except:
+                        pass
+                
+                # Extract location from href: ...-md-baltimore or ...-nj-...
+                location_match = re.search(r'-(md|dc|nj|oh|ga|mi)-', href, re.IGNORECASE)
+                if location_match:
+                    state = location_match.group(1).upper()
+                    vehicle["location_state"] = state
+                    vehicle["location"] = state
+                
+                # Extract damage from href if present
+                damage_keywords = ['front', 'rear', 'side', 'all-over', 'vandalism', 'hail', 'water', 'flood']
+                for damage in damage_keywords:
+                    if damage in href.lower():
+                        if damage == 'front':
+                            vehicle["damage"] = "Front End"
+                        elif damage == 'rear':
+                            vehicle["damage"] = "Rear End"
+                        elif damage == 'side':
+                            vehicle["damage"] = "Side"
+                        else:
+                            vehicle["damage"] = damage.title()
+                        break
+        
+        # Fallback to text patterns if not found in links
+        if vehicle["lot_number"] == "N/A":
+            lot_match = re.search(r'Lot\s*#\s*:?\s*(\d{8})', row_text, re.IGNORECASE)
+            if not lot_match:
+                lot_match = re.search(r'(?:1-)?(\d{8})', row_text)
+            if lot_match:
+                lot_num = lot_match.group(1)  # Get just the 8 digits, no "1-" prefix
+                vehicle["lot_number"] = lot_num
+                vehicle["url"] = f"https://www.copart.com/lot/{lot_num}"
         
         # Extract Year from car name/description
         year_match = re.search(r'\b(201[7-9]|202[0-3])\b', row_text)
@@ -315,6 +403,11 @@ class CopartScraper:
         # Only return vehicle if we have at least a lot number
         if vehicle["lot_number"] != "N/A":
             return vehicle
+        else:
+            # Debug: check if we have a link but didn't extract lot number
+            links = row_element.find_all('a', href=re.compile(r'/lot/\d+'))
+            if links:
+                print(f"  Warning: Found link but didn't extract lot number. Link: {links[0].get('href', '')[:50]}")
         
         return None
     
@@ -335,21 +428,25 @@ class CopartScraper:
             # Search 1: MD, DC, NJ (20 cars)
             search_url_md_dc_nj = "https://www.copart.com/lotSearchResults?free=true&query=&qId=51ad8d38-cfcc-485f-8336-1d845c5583df-1769321379269&index=0&searchCriteria=%7B%22query%22:%5B%22*%22%5D,%22filter%22:%7B%22TITL%22:%5B%22title_group_code:TITLEGROUP_S%22%5D,%22LOC%22:%5B%22yard_name:%5C%22DC%20-%20WASHINGTON%20DC%5C%22%22,%22yard_name:%5C%22MD%20-%20BALTIMORE%5C%22%22,%22yard_name:%5C%22MD%20-%20BALTIMORE%20EAST%5C%22%22,%22yard_name:%5C%22NJ%20-%20GLASSBORO%20EAST%5C%22%22,%22yard_name:%5C%22NJ%20-%20SOMERVILLE%5C%22%22,%22yard_name:%5C%22NJ%20-%20TRENTON%5C%22%22%5D,%22MAKE%22:%5B%22lot_make_desc:%5C%22TOYOTA%5C%22%22%5D,%22MODL%22:%5B%22manufacturer_model_desc:%5C%22COROLLA%5C%22%22%5D,%22PRID%22:%5B%22damage_type_code:DAMAGECODE_FR%22,%22damage_type_code:DAMAGECODE_RR%22,%22damage_type_code:DAMAGECODE_SD%22%5D,%22YEAR%22:%5B%22lot_year:%5B2017%20TO%202023%5D%22%5D,%22FETI%22:%5B%22lot_condition_code:CERT-D%22%5D%7D,%22searchName%22:%22%22,%22watchListOnly%22:false,%22freeFormSearch%22:false%7D"
             
+            print("  Starting search 1: MD/DC/NJ...")
             vehicles_1 = self.extract_vehicles_from_search_url(
                 search_url_md_dc_nj, 
                 limit=20, 
                 description="MD/DC/NJ"
             )
+            print(f"  Search 1 returned {len(vehicles_1)} vehicles")
             all_vehicles.extend(vehicles_1)
             
             # Search 2: GA, OH, MI (20 cars)
             search_url_ga_oh_mi = "https://www.copart.com/lotSearchResults?free=true&query=&qId=51ad8d38-cfcc-485f-8336-1d845c5583df-1769321379269&index=0&searchCriteria=%7B%22query%22:%5B%22*%22%5D,%22filter%22:%7B%22TITL%22:%5B%22title_group_code:TITLEGROUP_S%22%5D,%22LOC%22:%5B%22yard_name:%5C%22OH%20-%20CLEVELAND%5C%22%22,%22yard_name:%5C%22OH%20-%20COLUMBUS%5C%22%22,%22yard_name:%5C%22OH%20-%20CINCINNATI%5C%22%22,%22yard_name:%5C%22GA%20-%20ATLANTA%5C%22%22,%22yard_name:%5C%22GA%20-%20AUGUSTA%5C%22%22,%22yard_name:%5C%22MI%20-%20DETROIT%5C%22%22,%22yard_name:%5C%22MI%20-%20GRAND%20RAPIDS%5C%22%22%5D,%22MAKE%22:%5B%22lot_make_desc:%5C%22TOYOTA%5C%22%22%5D,%22MODL%22:%5B%22manufacturer_model_desc:%5C%22COROLLA%5C%22%22%5D,%22PRID%22:%5B%22damage_type_code:DAMAGECODE_FR%22,%22damage_type_code:DAMAGECODE_RR%22,%22damage_type_code:DAMAGECODE_SD%22%5D,%22YEAR%22:%5B%22lot_year:%5B2017%20TO%202023%5D%22%5D,%22FETI%22:%5B%22lot_condition_code:CERT-D%22%5D%7D,%22searchName%22:%22%22,%22watchListOnly%22:false,%22freeFormSearch%22:false%7D"
             
+            print("  Starting search 2: GA/OH/MI...")
             vehicles_2 = self.extract_vehicles_from_search_url(
                 search_url_ga_oh_mi, 
                 limit=20, 
                 description="GA/OH/MI"
             )
+            print(f"  Search 2 returned {len(vehicles_2)} vehicles")
             all_vehicles.extend(vehicles_2)
             
             # Filter vehicles by location and title

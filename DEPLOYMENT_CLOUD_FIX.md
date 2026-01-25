@@ -1,25 +1,6 @@
-# Cloud Deployment Fix for Chrome/Selenium
+# Cloud Deployment Guide
 
-## Issue
-Docker build fails when installing Chrome because:
-1. Architecture mismatch (ARM vs AMD64)
-2. Chrome installation method outdated
-3. Cloud platforms may not support headless Chrome well
-
-## Solutions
-
-### Solution 1: Use Updated Dockerfile (Fixed)
-The Dockerfile has been updated with:
-- Better Chrome installation method
-- Proper dependencies
-- Architecture handling
-
-**Try building again:**
-```bash
-docker build -t copart-scraper .
-```
-
-### Solution 2: Deploy Without Docker (Easier for Free Tiers)
+## Recommended: Deploy Without Docker (Easier for Free Tiers)
 
 **For Render.com:**
 1. Go to render.com
@@ -54,10 +35,9 @@ The scraper already extracts data from search results (no individual page visits
 
 ## Quick Fix for Render
 
-1. **Remove Dockerfile** (or rename it)
-2. **Deploy as Python service** (not Docker)
-3. **Use render.yaml** config
-4. **Reduce workers** to 2
+1. **Deploy as Python service** (not Docker)
+2. **Use render.yaml** config
+3. **Reduce workers** to 2
 
 The app should work, but scraping may be slower on free tier.
 

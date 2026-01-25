@@ -3,11 +3,9 @@ services:
     name: copart-scraper
     env: python
     buildCommand: pip install -r requirements.txt && pip install gunicorn
-    startCommand: gunicorn -w 2 -b 0.0.0.0:${PORT:-8080} --timeout 300 app:app
+    startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT --timeout 600 --preload app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: DISPLAY
         value: ":99"
-    # Note: Render free tier may have limitations with Chrome/Selenium
-    # Consider using Playwright or optimizing scraper for cloud

@@ -1,32 +1,67 @@
-# Copart Toyota Corolla Dashboard
+# 🚗 Copart Toyota Corolla Scraper Dashboard
 
-A web dashboard that scrapes and displays Toyota Corolla vehicles from Copart (2017-2020, Salvage, unsold, located in MD, NJ, DC).
+A web scraper and dashboard for finding Toyota Corolla vehicles (2017-2023, Salvage title) from Copart auctions in MD, NJ, DC, GA, MI, OH.
 
 ## Features
 
-- Scrapes Toyota Corolla data from Copart
-- Filters: 2017-2020, Salvage status, Not sold, Locations: MD, NJ, DC
-- Displays up to 100 cars in a table
-- Refresh button to update data
+- ✅ Real-time scraping from Copart
+- ✅ Filters: 2017-2023, Salvage title, specific states only
+- ✅ Modern responsive dashboard
+- ✅ Auto-refresh capability
+- ✅ Detailed vehicle information
 
-## Installation
+## Quick Start
 
-1. Install dependencies:
+### Deploy to Render.com (Recommended)
+
+1. Fork this repository
+2. Go to [render.com](https://render.com)
+3. Click "New +" → "Web Service"
+4. Connect your GitHub repo
+5. Render will auto-detect settings from `render.yaml`
+6. Click "Create Web Service"
+
+Your app will be live in minutes!
+
+### Local Development
+
 ```bash
+# Install dependencies
 pip install -r requirements.txt
+
+# Run the app
+python3 app.py
+
+# Access at http://localhost:8080
 ```
 
-2. Run the application:
-```bash
-python app.py
+## Project Structure
+
+```
+copart/
+├── app.py              # Flask web application
+├── scraper.py          # Web scraping logic
+├── templates/
+│   └── dashboard.html  # Frontend UI
+├── requirements.txt    # Python dependencies
+├── render.yaml         # Render.com configuration
+└── README.md           # This file
 ```
 
-3. Open your browser and navigate to:
-```
-http://localhost:5000
-```
+## API Endpoints
 
-## Usage
+- `GET /` - Main dashboard
+- `GET /api/data` - Get cached vehicle data
+- `POST /api/refresh` - Trigger new scrape
 
-- Click the "Refresh Data" button to scrape and update the vehicle data
-- The dashboard will display up to 100 Toyota Corolla vehicles matching the criteria
+## Technologies
+
+- Python 3.9+
+- Flask (Web framework)
+- Selenium (Web scraping)
+- BeautifulSoup (HTML parsing)
+- Gunicorn (Production server)
+
+## License
+
+MIT

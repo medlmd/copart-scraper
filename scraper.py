@@ -421,6 +421,14 @@ class CopartScraper:
         """
         all_vehicles = []
         
+        # Initialize driver if not already done
+        if not self.driver:
+            try:
+                self.setup_driver()
+            except Exception as e:
+                print(f"Error initializing ChromeDriver: {e}")
+                return all_vehicles
+        
         if not self.driver:
             return all_vehicles
         
@@ -457,9 +465,11 @@ class CopartScraper:
                 if location_state not in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
                     continue
                 
-                # Check title (must be Salvage)
+                # Check title (must be Salvage) - also check href for salvage keyword
                 title = vehicle.get("title", "").upper()
-                if "SALVAGE" not in title:
+                url = vehicle.get("url", "").upper()
+                if "SALVAGE" not in title and "SALVAGE" not in url:
+                    # Check if href contains salvage (most reliable)
                     continue
                 
                 filtered_vehicles.append(vehicle)

@@ -602,7 +602,7 @@
             refreshBtn.textContent = '⏳ Loading...';
 
             const content = document.getElementById('content');
-            content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Scraping data from Copart...<br><small>This may take 1-2 minutes</small></p></div>';
+            content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading vehicle data...<br><small>This may take 1-2 minutes</small></p></div>';
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 300000);

@@ -289,10 +289,10 @@
             })
             .then(response => {
                 clearTimeout(timeoutId);
-                if (!response.ok) {
+                // Even if response is not ok, try to get JSON for error message
+                return response.json().catch(() => {
                     throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
+                });
             })
             .then(data => {
                 isLoading = false;
@@ -304,7 +304,40 @@
                     document.getElementById('totalCount').textContent = data.count;
                     document.getElementById('lastUpdated').textContent = formatDate();
                 } else {
-                    content.innerHTML = `<div class="error"><strong>Error:</strong> ${data.error || 'Failed to fetch data'}</div>`;
+                    // Show error but keep cached data visible if available
+                    const errorMsg = data.error || 'Failed to fetch data';
+                    let errorHTML = `<div class="error"><strong>⚠️ Scraping Error:</strong> ${errorMsg}`;
+                    
+                    // Check if ChromeDriver error
+                    if (errorMsg.includes('Chrome') || errorMsg.includes('ChromeDriver')) {
+                        errorHTML += `<br><br><strong>Note:</strong> The dashboard works without ChromeDriver, but scraping requires it.`;
+                        errorHTML += `<br>If you have cached data, it will still be displayed below.</div>`;
+                    } else {
+                        errorHTML += `</div>`;
+                    }
+                    
+                    // If we have cached data in the response, show it
+                    if (data.cached && data.data && data.data.length > 0) {
+                        errorHTML += '<div style="margin-top: 20px;">';
+                        displayData(data.data);
+                        document.getElementById('totalCount').textContent = data.count;
+                        return; // Don't show error, data is displayed
+                    }
+                    
+                    // Show error, then try to load cached data
+                    content.innerHTML = errorHTML;
+                    
+                    // If we have cached data, show it below the error
+                    fetch('/api/data')
+                        .then(r => r.json())
+                        .then(cachedData => {
+                            if (cachedData.success && cachedData.data && cachedData.data.length > 0) {
+                                // Append data below error
+                                displayData(cachedData.data);
+                                document.getElementById('totalCount').textContent = cachedData.count;
+                            }
+                        })
+                        .catch(() => {});
                 }
             })
             .catch(error => {

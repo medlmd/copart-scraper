@@ -49,6 +49,16 @@ def refresh_data():
             print("   2. Network/connection issues")
             print("   3. Copart website blocking requests")
             print("   4. Search criteria too strict")
+            # Don't clear cached data if scraping fails - keep old data
+            if len(cached_data) > 0:
+                print(f"ℹ️  Keeping {len(cached_data)} cached vehicles from previous scrape")
+                return jsonify({
+                    'success': False,
+                    'error': 'Scraping returned 0 vehicles. This usually means Chrome/ChromeDriver is not available. Showing cached data instead.',
+                    'data': cached_data,
+                    'count': len(cached_data),
+                    'cached': True
+                })
         
         # Update cached data
         global cached_data

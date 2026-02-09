@@ -10,6 +10,9 @@
    - **Environment**: `Python 3`
    - **Build Command**: `pip install -r requirements.txt && pip install gunicorn`
    - **Start Command**: `gunicorn -w 1 -b 0.0.0.0:$PORT --timeout 600 --preload app:app`
+   - **Environment Variables** (set in Render dashboard):
+     - `BROWSERLESS_URL` = `wss://chrome.browserless.io`
+     - `BROWSERLESS_TOKEN` = `your-browserless-token-here` (get from https://www.browserless.io/)
    - **Publish Directory**: Leave empty
 5. **Click "Create Web Service"**
 

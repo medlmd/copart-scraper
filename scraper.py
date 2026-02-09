@@ -20,41 +20,102 @@ class CopartScraper:
         # Don't initialize browser on creation - do it lazily when needed
     
     def setup_browser(self):
-        """Setup Playwright browser with Cloudflare bypass options"""
+        """Setup Playwright browser with Browserless or local browser"""
         try:
             print("Initializing Playwright...")
             self.playwright = sync_playwright().start()
             
-            # Launch browser with stealth options
-            browser_args = [
-                '--no-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-blink-features=AutomationControlled',
-                '--disable-features=IsolateOrigins,site-per-process',
-            ]
+            # Check for Browserless configuration
+            browserless_url = os.environ.get('BROWSERLESS_URL', None)
+            browserless_token = os.environ.get('BROWSERLESS_TOKEN', None)
             
-            self.browser = self.playwright.chromium.launch(
-                headless=True,
-                args=browser_args
-            )
+            if browserless_url:
+                # Connect to Browserless service
+                print(f"🔗 Connecting to Browserless at {browserless_url}...")
+                
+                # Build WebSocket URL with token if provided
+                ws_url = browserless_url
+                if browserless_token:
+                    # Add token to URL if not already present
+                    if '?' not in ws_url:
+                        ws_url = f"{ws_url}?token={browserless_token}"
+                    elif 'token=' not in ws_url:
+                        ws_url = f"{ws_url}&token={browserless_token}"
+                
+                try:
+                    # Connect to Browserless via CDP (Chrome DevTools Protocol)
+                    self.browser = self.playwright.chromium.connect_over_cdp(ws_url)
+                    print("✅ Connected to Browserless successfully")
+                    
+                    # Get existing contexts from Browserless
+                    contexts = self.browser.contexts
+                    if contexts:
+                        # Use existing context
+                        context = contexts[0]
+                        print("✅ Using existing Browserless context")
+                    else:
+                        # Create new context if none exists
+                        context = self.browser.new_context(
+                            user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            viewport={'width': 1920, 'height': 1080},
+                            java_script_enabled=True,
+                        )
+                        print("✅ Created new Browserless context")
+                    
+                    # Add script to hide webdriver property
+                    context.add_init_script("""
+                        Object.defineProperty(navigator, 'webdriver', {
+                            get: () => undefined
+                        });
+                    """)
+                    
+                    # Get or create page
+                    pages = context.pages
+                    if pages:
+                        self.page = pages[0]
+                    else:
+                        self.page = context.new_page()
+                    
+                    print("✅ Browserless page ready")
+                    return  # Skip local browser setup
+                    
+                except Exception as e:
+                    print(f"⚠️  Browserless connection failed: {e}")
+                    print("   Falling back to local browser...")
+                    browserless_url = None  # Fall back to local
             
-            # Create context with stealth settings
-            context = self.browser.new_context(
-                user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                viewport={'width': 1920, 'height': 1080},
-                java_script_enabled=True,
-            )
-            
-            # Add script to hide webdriver property
-            context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                });
-            """)
-            
-            # Create page
-            self.page = context.new_page()
-            print("✅ Playwright browser initialized successfully")
+            if not browserless_url:
+                # Launch local browser with stealth options
+                browser_args = [
+                    '--no-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                ]
+                
+                self.browser = self.playwright.chromium.launch(
+                    headless=True,
+                    args=browser_args
+                )
+                print("✅ Local browser launched")
+                
+                # Create context with stealth settings
+                context = self.browser.new_context(
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    viewport={'width': 1920, 'height': 1080},
+                    java_script_enabled=True,
+                )
+                
+                # Add script to hide webdriver property
+                context.add_init_script("""
+                    Object.defineProperty(navigator, 'webdriver', {
+                        get: () => undefined
+                    });
+                """)
+                
+                # Create page
+                self.page = context.new_page()
+                print("✅ Playwright browser initialized successfully")
             
         except Exception as e:
             error_msg = f"Error setting up Playwright browser: {str(e)}"
@@ -69,7 +130,14 @@ class CopartScraper:
             if self.page:
                 self.page.close()
             if self.browser:
-                self.browser.close()
+                # For Browserless connections, try disconnect() if close() fails
+                try:
+                    self.browser.close()
+                except:
+                    try:
+                        self.browser.disconnect()
+                    except:
+                        pass
             if self.playwright:
                 self.playwright.stop()
         except:
@@ -99,19 +167,27 @@ class CopartScraper:
         
         try:
             print(f"Navigating to Copart search results ({description})...")
-            self.page.goto(search_url, wait_until='networkidle', timeout=30000)
+            self.page.goto(search_url, wait_until='domcontentloaded', timeout=60000)
             
-            # Wait for page to load
+            # Wait for page to load - Copart uses heavy JavaScript rendering
             print("Waiting for page to load...")
-            time.sleep(3)
+            time.sleep(10)  # Increased wait time for JavaScript to render
             
             # Wait for content to be ready
             try:
-                self.page.wait_for_load_state('domcontentloaded', timeout=15000)
+                self.page.wait_for_load_state('networkidle', timeout=30000)
             except:
                 pass
             
-            time.sleep(2)
+            # Additional wait for dynamic content
+            time.sleep(5)
+            
+            # Try to wait for any lot links to appear
+            try:
+                self.page.wait_for_selector('a[href*="/lot/"]', timeout=15000, state='attached')
+                print("✅ Lot links detected on page")
+            except:
+                print("⚠️  No lot links found after waiting - page may require login or have no results")
             
             page_source = self.page.content()
             soup = BeautifulSoup(page_source, 'html.parser')

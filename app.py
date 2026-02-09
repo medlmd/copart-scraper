@@ -2,6 +2,11 @@
 Flask application for Copart Toyota Corolla Dashboard
 """
 from flask import Flask, render_template, jsonify
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 

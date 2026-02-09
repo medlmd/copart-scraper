@@ -7,3 +7,7 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
+      - key: BROWSERLESS_URL
+        value: wss://chrome.browserless.io
+      # BROWSERLESS_TOKEN should be set in Render dashboard (not in YAML for security)
+      # Go to your service → Environment → Add: BROWSERLESS_TOKEN = your-token-here

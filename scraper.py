@@ -567,24 +567,40 @@ class CopartScraper:
             print(f"   - From NY: {len(vehicles_2)}")
             print(f"   - After filtering: {len(filtered_vehicles)}")
             
-            # Fetch high-quality images from individual lot pages
-            print(f"\n📸 Fetching high-quality images from individual lot pages...")
+            # Fetch high-quality images from individual lot pages for ALL vehicles
+            print(f"\n📸 Fetching high-quality images from individual lot pages for {len(filtered_vehicles)} vehicles...")
+            vehicles_with_images = []
             for i, vehicle in enumerate(filtered_vehicles, 1):
                 lot_number = vehicle.get("lot_number", "N/A")
-                if lot_number != "N/A" and vehicle.get("url") and vehicle.get("url") != "N/A":
+                if lot_number != "N/A":
                     try:
                         print(f"  [{i}/{len(filtered_vehicles)}] Fetching images for lot {lot_number}...")
                         lot_images = self._fetch_images_from_lot_page(lot_number)
-                        if lot_images:
-                            vehicle["images"] = lot_images
-                            print(f"      ✅ Found {len(lot_images)} high-quality images")
+                        if lot_images and len(lot_images) > 0:
+                            # Ensure all images maintain maximum quality
+                            high_quality_images = []
+                            for img_url in lot_images:
+                                # Clean URL to ensure maximum quality
+                                clean_url = img_url
+                                # Replace thumbnail/small/medium with full
+                                clean_url = clean_url.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/')
+                                # Remove any size/quality parameters
+                                clean_url = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize)=\d+', '', clean_url)
+                                # Ensure it's using /full/ path for Copart images
+                                if 'cs.copart.com' in clean_url and '/full/' not in clean_url:
+                                    # Try to replace any size path with /full/
+                                    clean_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', clean_url)
+                                high_quality_images.append(clean_url)
+                            
+                            vehicle["images"] = high_quality_images
+                            print(f"      ✅ Found {len(high_quality_images)} high-quality images")
                         else:
                             # Fallback to default high-quality URLs
                             default_images = []
                             for img_num in range(1, 6):
                                 default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
                             vehicle["images"] = default_images
-                            print(f"      ⚠️  Using default image URLs")
+                            print(f"      ⚠️  Using default high-quality image URLs ({len(default_images)} images)")
                     except Exception as e:
                         print(f"      ⚠️  Error fetching images: {e}")
                         # Fallback to default high-quality URLs
@@ -592,6 +608,13 @@ class CopartScraper:
                         for img_num in range(1, 6):
                             default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
                         vehicle["images"] = default_images
+                        print(f"      ✅ Using fallback high-quality URLs ({len(default_images)} images)")
+                
+                # Always add vehicle, even if no images found (will use defaults)
+                vehicles_with_images.append(vehicle)
+            
+            print(f"\n✅ Image fetching complete: {len(vehicles_with_images)} vehicles with images")
+            return vehicles_with_images
             
             return filtered_vehicles
             
@@ -640,15 +663,26 @@ class CopartScraper:
                     if img_src.startswith('http'):
                         images.append(img_src)
             
-            # Method 2: Look for Copart's standard image URLs in page source
+            # Method 2: Look for Copart's standard image URLs in page source - get ALL images (1-20)
             # Pattern: https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot}/full/{lot}_{num}.jpg
-            copart_image_pattern = rf'https://cs\.copart\.com/v1/AUTH_svc\.pdoc/00000/{lot_number}/full/{lot_number}_\d+\.jpg'
+            # Try to find all image numbers (1-20) for maximum coverage
+            for img_num in range(1, 21):
+                img_url = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg"
+                # Check if this URL exists in page source
+                if img_url in page_source or f'{lot_number}_{img_num}' in page_source:
+                    if img_url not in images:
+                        images.append(img_url)
+            
+            # Also search for any Copart image URLs in the page
+            copart_image_pattern = rf'https://cs\.copart\.com/v1/AUTH_svc\.pdoc/\d+/{lot_number}/(?:full|large)/{lot_number}_\d+\.jpg'
             image_matches = re.findall(copart_image_pattern, page_source, re.IGNORECASE)
             for img_url in image_matches:
+                # Ensure /full/ path
+                img_url = img_url.replace('/large/', '/full/')
                 if img_url not in images:
                     images.append(img_url)
             
-            # Method 3: Try to find image gallery or carousel
+            # Method 3: Try to find image gallery or carousel - get ALL images
             # Look for data attributes that might contain image URLs
             data_attrs = soup.find_all(attrs={'data-image': True})
             for elem in data_attrs:
@@ -658,26 +692,63 @@ class CopartScraper:
                         img_src = 'https:' + img_src
                     elif img_src.startswith('/'):
                         img_src = 'https://www.copart.com' + img_src
-                    img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/')
-                    img_src = re.sub(r'[?&](width|height|w|h|size|quality)=\d+', '', img_src)
+                    # Replace all size paths with /full/ for maximum quality
+                    img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                    # Remove ALL quality/size parameters
+                    img_src = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+', '', img_src)
                     if img_src.startswith('http') and img_src not in images:
                         images.append(img_src)
+            
+            # Method 4: Look for image arrays in JavaScript/data attributes
+            # Some pages have image arrays in data attributes
+            for elem in soup.find_all(attrs={'data-images': True}):
+                try:
+                    import json
+                    images_json = elem.get('data-images')
+                    if images_json:
+                        img_list = json.loads(images_json)
+                        for img_url in img_list:
+                            if isinstance(img_url, str):
+                                if img_url.startswith('//'):
+                                    img_url = 'https:' + img_url
+                                elif img_url.startswith('/'):
+                                    img_url = 'https://www.copart.com' + img_url
+                                img_url = img_url.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                                img_url = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize)=\d+', '', img_url)
+                                if img_url.startswith('http') and img_url not in images:
+                                    images.append(img_url)
+                except:
+                    pass
             
             # Remove duplicates while preserving order
             seen = set()
             unique_images = []
             for img in images:
-                if img not in seen:
-                    seen.add(img)
+                # Normalize URL to avoid duplicates
+                normalized = img.split('?')[0]  # Remove query params for comparison
+                if normalized not in seen:
+                    seen.add(normalized)
                     unique_images.append(img)
             
-            # If we found images, return them
-            if unique_images:
-                return unique_images
+            # Ensure all images maintain maximum quality - clean them again
+            final_images = []
+            for img_url in unique_images:
+                # Final quality check - ensure /full/ path and no size params
+                clean_url = img_url
+                clean_url = clean_url.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                clean_url = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+', '', clean_url)
+                # Ensure Copart images use /full/ path
+                if 'cs.copart.com' in clean_url:
+                    clean_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', clean_url)
+                final_images.append(clean_url)
             
-            # Fallback: Try Copart's standard high-quality image URLs
+            # If we found images, return them (all at maximum quality)
+            if final_images:
+                return final_images
+            
+            # Fallback: Try Copart's standard high-quality image URLs (try more images: 1-10)
             default_images = []
-            for img_num in range(1, 6):
+            for img_num in range(1, 11):
                 default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
             return default_images
             

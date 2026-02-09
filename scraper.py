@@ -671,21 +671,39 @@ class CopartScraper:
                 "images": []
             }
             
-            # Extract images from the lot page
+            # Extract images from the lot page - prioritize high quality
             img_tags = soup.find_all('img')
             for img in img_tags:
-                img_src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
+                # Try multiple attributes in order of preference (high quality first)
+                img_src = img.get('data-full') or img.get('data-original') or img.get('data-src') or img.get('src') or img.get('data-lazy-src')
                 if img_src and ('vehicle' in img_src.lower() or 'lot' in img_src.lower() or 'copart' in img_src.lower()):
                     if img_src.startswith('//'):
                         img_src = 'https:' + img_src
                     elif img_src.startswith('/'):
                         img_src = 'https://www.copart.com' + img_src
+                    # Replace thumbnail/small sizes with full size
+                    img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/')
+                    # Remove size parameters
+                    img_src = re.sub(r'[?&](width|height|w|h|size|quality)=\d+', '', img_src)
                     if img_src.startswith('http'):
                         vehicle["images"].append(img_src)
             
-            # If no images found, use default Copart image URL
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_images = []
+            for img in vehicle["images"]:
+                if img not in seen:
+                    seen.add(img)
+                    unique_images.append(img)
+            vehicle["images"] = unique_images
+            
+            # If no images found, use default high-quality Copart image URLs
             if not vehicle["images"]:
-                vehicle["images"] = [f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_1.jpg"]
+                # Try multiple image numbers (1-5) for best coverage
+                default_images = []
+                for img_num in range(1, 6):
+                    default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
+                vehicle["images"] = default_images
             
             # Extract Year - Look for "Year" tag on the page
             year = None

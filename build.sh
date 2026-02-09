@@ -48,8 +48,8 @@ if [ -n "$BROWSERLESS_URL" ]; then
     
     # Install Playwright without greenlet dependency (we don't need it for CDP connection)
     echo "   Installing Playwright without greenlet (Browserless CDP doesn't require it)..."
-    # First try to install playwright's other dependencies manually
-    pip install --no-cache-dir --prefer-binary pyee==11.1.0 typing-extensions || true
+    # Install Playwright's other dependencies first (except greenlet)
+    pip install --no-cache-dir --prefer-binary pyee typing-extensions || true
     
     # Install Playwright without greenlet dependency
     pip install --no-cache-dir --no-deps playwright==1.40.0 || \

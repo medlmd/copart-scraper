@@ -253,7 +253,7 @@ class CopartScraper:
                         pass
                 
                 # Extract location from href: ...-md-baltimore or ...-nj-...
-                location_match = re.search(r'-(md|dc|nj|oh|ga|mi)-', href, re.IGNORECASE)
+                location_match = re.search(r'-(md|dc|nj|ny)-', href, re.IGNORECASE)
                 if location_match:
                     state = location_match.group(1).upper()
                     vehicle["location_state"] = state
@@ -332,9 +332,9 @@ class CopartScraper:
                 vehicle["damage"] = damage
                 break
         
-        # Extract Location (MD, DC, NJ, OH, GA, MI)
+        # Extract Location (MD, DC, NJ, NY)
         location_patterns = [
-            r'\b(MD|DC|NJ|OH|GA|MI|Maryland|District of Columbia|New Jersey|Ohio|Georgia|Michigan)\b',
+            r'\b(MD|DC|NJ|NY|Maryland|District of Columbia|New Jersey|New York)\b',
         ]
         for pattern in location_patterns:
             location_match = re.search(pattern, row_text, re.IGNORECASE)
@@ -349,15 +349,9 @@ class CopartScraper:
                 elif state_text in ['NJ', 'NEW JERSEY']:
                     vehicle["location_state"] = 'NJ'
                     vehicle["location"] = 'NJ'
-                elif state_text in ['OH', 'OHIO']:
-                    vehicle["location_state"] = 'OH'
-                    vehicle["location"] = 'OH'
-                elif state_text in ['GA', 'GEORGIA']:
-                    vehicle["location_state"] = 'GA'
-                    vehicle["location"] = 'GA'
-                elif state_text in ['MI', 'MICHIGAN']:
-                    vehicle["location_state"] = 'MI'
-                    vehicle["location"] = 'MI'
+                elif state_text in ['NY', 'NEW YORK']:
+                    vehicle["location_state"] = 'NY'
+                    vehicle["location"] = 'NY'
                 break
         
         # Extract Current Bid
@@ -416,7 +410,7 @@ class CopartScraper:
         
         Strategy: Split into two searches to bypass pagination:
         1. Search for MD/DC/NJ (20 cars) - extract all data from search page
-        2. Search for GA/OH/MI (20 cars) - extract all data from search page
+        2. Search for NY (20 cars) - extract all data from search page
         3. Merge and filter results
         """
         all_vehicles = []
@@ -445,14 +439,14 @@ class CopartScraper:
             print(f"  Search 1 returned {len(vehicles_1)} vehicles")
             all_vehicles.extend(vehicles_1)
             
-            # Search 2: GA, OH, MI (20 cars)
-            search_url_ga_oh_mi = "https://www.copart.com/lotSearchResults?free=true&query=&qId=51ad8d38-cfcc-485f-8336-1d845c5583df-1769321379269&index=0&searchCriteria=%7B%22query%22:%5B%22*%22%5D,%22filter%22:%7B%22TITL%22:%5B%22title_group_code:TITLEGROUP_S%22%5D,%22LOC%22:%5B%22yard_name:%5C%22OH%20-%20CLEVELAND%5C%22%22,%22yard_name:%5C%22OH%20-%20COLUMBUS%5C%22%22,%22yard_name:%5C%22OH%20-%20CINCINNATI%5C%22%22,%22yard_name:%5C%22GA%20-%20ATLANTA%5C%22%22,%22yard_name:%5C%22GA%20-%20AUGUSTA%5C%22%22,%22yard_name:%5C%22MI%20-%20DETROIT%5C%22%22,%22yard_name:%5C%22MI%20-%20GRAND%20RAPIDS%5C%22%22%5D,%22MAKE%22:%5B%22lot_make_desc:%5C%22TOYOTA%5C%22%22%5D,%22MODL%22:%5B%22manufacturer_model_desc:%5C%22COROLLA%5C%22%22%5D,%22PRID%22:%5B%22damage_type_code:DAMAGECODE_FR%22,%22damage_type_code:DAMAGECODE_RR%22,%22damage_type_code:DAMAGECODE_SD%22%5D,%22YEAR%22:%5B%22lot_year:%5B2017%20TO%202023%5D%22%5D,%22FETI%22:%5B%22lot_condition_code:CERT-D%22%5D%7D,%22searchName%22:%22%22,%22watchListOnly%22:false,%22freeFormSearch%22:false%7D"
+            # Search 2: NY (20 cars)
+            search_url_ny = "https://www.copart.com/lotSearchResults?free=true&query=&qId=51ad8d38-cfcc-485f-8336-1d845c5583df-1769321379269&index=0&searchCriteria=%7B%22query%22:%5B%22*%22%5D,%22filter%22:%7B%22TITL%22:%5B%22title_group_code:TITLEGROUP_S%22%5D,%22LOC%22:%5B%22yard_name:%5C%22NY%20-%20ALBANY%5C%22%22,%22yard_name:%5C%22NY%20-%20BUFFALO%5C%22%22,%22yard_name:%5C%22NY%20-%20NEW%20YORK%5C%22%22,%22yard_name:%5C%22NY%20-%20ROCHESTER%5C%22%22,%22yard_name:%5C%22NY%20-%20SYRACUSE%5C%22%22%5D,%22MAKE%22:%5B%22lot_make_desc:%5C%22TOYOTA%5C%22%22%5D,%22MODL%22:%5B%22manufacturer_model_desc:%5C%22COROLLA%5C%22%22%5D,%22PRID%22:%5B%22damage_type_code:DAMAGECODE_FR%22,%22damage_type_code:DAMAGECODE_RR%22,%22damage_type_code:DAMAGECODE_SD%22%5D,%22YEAR%22:%5B%22lot_year:%5B2017%20TO%202023%5D%22%5D,%22FETI%22:%5B%22lot_condition_code:CERT-D%22%5D%7D,%22searchName%22:%22%22,%22watchListOnly%22:false,%22freeFormSearch%22:false%7D"
             
-            print("  Starting search 2: GA/OH/MI...")
+            print("  Starting search 2: NY...")
             vehicles_2 = self.extract_vehicles_from_search_url(
-                search_url_ga_oh_mi, 
+                search_url_ny, 
                 limit=20, 
-                description="GA/OH/MI"
+                description="NY"
             )
             print(f"  Search 2 returned {len(vehicles_2)} vehicles")
             all_vehicles.extend(vehicles_2)
@@ -462,7 +456,7 @@ class CopartScraper:
             for vehicle in all_vehicles:
                 # Check location
                 location_state = vehicle.get("location_state", "N/A")
-                if location_state not in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
+                if location_state not in ['MD', 'DC', 'NJ', 'NY']:
                     continue
                 
                 # Check title (must be Salvage) - also check href for salvage keyword
@@ -476,7 +470,7 @@ class CopartScraper:
             
             print(f"\n✅ Total vehicles extracted: {len(all_vehicles)}")
             print(f"   - From MD/DC/NJ: {len(vehicles_1)}")
-            print(f"   - From GA/OH/MI: {len(vehicles_2)}")
+            print(f"   - From NY: {len(vehicles_2)}")
             print(f"   - After filtering: {len(filtered_vehicles)}")
             
             return filtered_vehicles
@@ -514,8 +508,8 @@ class CopartScraper:
             
             location_lane_patterns = [
                 r'(?:Location\s*/\s*Lane|Location/Lane)[:\s]+[^<\n]{0,100}?([A-Z]{2})\b',
-                r'(?:Location\s*/\s*Lane|Location/Lane)[:\s]+[^<\n]{0,100}?(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
-                r'Lane[:\s]+[^<\n]{0,100}?(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
+                r'(?:Location\s*/\s*Lane|Location/Lane)[:\s]+[^<\n]{0,100}?(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
+                r'Lane[:\s]+[^<\n]{0,100}?(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
             ]
             
             # Method 1: Extract from "Lot #" tag - PRIMARY METHOD
@@ -558,19 +552,13 @@ class CopartScraper:
                                     elif state_text in ['DC', 'DISTRICT OF COLUMBIA']:
                                         location_lane_state = 'DC'
                                         break
-                                    elif state_text in ['OH', 'OHIO']:
-                                        location_lane_state = 'OH'
-                                        break
-                                    elif state_text in ['GA', 'GEORGIA']:
-                                        location_lane_state = 'GA'
-                                        break
-                                    elif state_text in ['MI', 'MICHIGAN']:
-                                        location_lane_state = 'MI'
+                                    elif state_text in ['NY', 'NEW YORK']:
+                                        location_lane_state = 'NY'
                                         break
                             
                             # If filtering by location, check Location/Lane
                             if filter_by_location:
-                                if location_lane_state in ['MD', 'NJ', 'DC', 'OH', 'GA', 'MI']:
+                                if location_lane_state in ['MD', 'NJ', 'DC', 'NY']:
                                     lot_numbers_found.add(lot_num)
                                     lot_data_list.append({
                                         'lot_number': lot_num,
@@ -611,7 +599,7 @@ class CopartScraper:
                                             location_lane_state = 'DC'
                                             break
                                 
-                                # Search URL already filtered for MD/DC/NJ/OH/GA/MI, so add all lots
+                                # Search URL already filtered for MD/DC/NJ/NY, so add all lots
                                 lot_numbers_found.add(lot_num)
                                 lot_data_list.append({
                                     'lot_number': lot_num,
@@ -842,7 +830,7 @@ class CopartScraper:
             self.lot_data_cache = {}
             
             print(f"Found {len(unique_lots)} unique lot numbers from Copart search results")
-            print("Note: Search URL already filtered for MD/DC/NJ/OH/GA/MI states")
+            print("Note: Search URL already filtered for MD/DC/NJ/NY states")
             print("      Individual lot pages will be scraped for full details")
             
             return unique_lots
@@ -1085,17 +1073,9 @@ class CopartScraper:
                                 location_text = loc_text
                                 location = 'DC'
                                 break
-                            elif re.search(r'\b(OH|Ohio)\b', loc_text, re.IGNORECASE):
+                            elif re.search(r'\b(NY|New York)\b', loc_text, re.IGNORECASE):
                                 location_text = loc_text
-                                location = 'OH'
-                                break
-                            elif re.search(r'\b(GA|Georgia)\b', loc_text, re.IGNORECASE):
-                                location_text = loc_text
-                                location = 'GA'
-                                break
-                            elif re.search(r'\b(MI|Michigan)\b', loc_text, re.IGNORECASE):
-                                location_text = loc_text
-                                location = 'MI'
+                                location = 'NY'
                                 break
                     if location != "N/A":
                         break
@@ -1108,9 +1088,7 @@ class CopartScraper:
                 md_cities = ['Baltimore', 'Annapolis', 'Frederick', 'Rockville', 'Gaithersburg', 'Columbia', 'Germantown', 'Waldorf', 'Laurel', 'Bethesda', 'Silver Spring', 'Wheaton']
                 nj_cities = ['Newark', 'Jersey City', 'Paterson', 'Elizabeth', 'Edison', 'Woodbridge', 'Lakewood', 'Toms River', 'Hamilton', 'Trenton', 'Clifton', 'Camden']
                 dc_cities = ['Washington', 'District']
-                oh_cities = ['Cleveland', 'Columbus', 'Cincinnati', 'Toledo', 'Akron', 'Dayton', 'Parma', 'Canton', 'Youngstown', 'Lorain']
-                ga_cities = ['Atlanta', 'Augusta', 'Columbus', 'Savannah', 'Athens', 'Sandy Springs', 'Roswell', 'Macon', 'Johns Creek', 'Albany']
-                mi_cities = ['Detroit', 'Grand Rapids', 'Warren', 'Sterling Heights', 'Lansing', 'Ann Arbor', 'Flint', 'Dearborn', 'Livonia', 'Troy']
+                ny_cities = ['New York', 'Albany', 'Buffalo', 'Rochester', 'Syracuse', 'Yonkers', 'Utica', 'White Plains', 'Hempstead', 'Troy', 'Binghamton', 'Freeport']
                 
                 # Try MD cities first
                 for city in md_cities:
@@ -1141,39 +1119,19 @@ class CopartScraper:
                             location = 'DC'
                             break
                 
-                # Try OH cities
+                # Try NY cities
                 if location == "N/A":
-                    for city in oh_cities:
-                        pattern = rf'{city}[,\s]+(OH|Ohio)'
+                    for city in ny_cities:
+                        pattern = rf'{city}[,\s]+(NY|New York)'
                         match = re.search(pattern, body_text if body_text else page_source, re.IGNORECASE)
                         if match:
-                            location_text = f"{city}, OH"
-                            location = 'OH'
-                            break
-                
-                # Try GA cities
-                if location == "N/A":
-                    for city in ga_cities:
-                        pattern = rf'{city}[,\s]+(GA|Georgia)'
-                        match = re.search(pattern, body_text if body_text else page_source, re.IGNORECASE)
-                        if match:
-                            location_text = f"{city}, GA"
-                            location = 'GA'
-                            break
-                
-                # Try MI cities
-                if location == "N/A":
-                    for city in mi_cities:
-                        pattern = rf'{city}[,\s]+(MI|Michigan)'
-                        match = re.search(pattern, body_text if body_text else page_source, re.IGNORECASE)
-                        if match:
-                            location_text = f"{city}, MI"
-                            location = 'MI'
+                            location_text = f"{city}, NY"
+                            location = 'NY'
                             break
             
             # Method 2b: Generic city-state pattern
             if location == "N/A":
-                city_state_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]+(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)'
+                city_state_pattern = r'([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)[,\s]+(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)'
                 match = re.search(city_state_pattern, body_text if body_text else page_source)
                 if match:
                     city = match.group(1).strip()
@@ -1188,15 +1146,9 @@ class CopartScraper:
                     elif state.upper() in ['DC', 'DISTRICT OF COLUMBIA']:
                         location_text = f"{city}, DC"
                         location = 'DC'
-                    elif state.upper() in ['OH', 'OHIO']:
-                        location_text = f"{city}, OH"
-                        location = 'OH'
-                    elif state.upper() in ['GA', 'GEORGIA']:
-                        location_text = f"{city}, GA"
-                        location = 'GA'
-                    elif state.upper() in ['MI', 'MICHIGAN']:
-                        location_text = f"{city}, MI"
-                        location = 'MI'
+                    elif state.upper() in ['NY', 'NEW YORK']:
+                        location_text = f"{city}, NY"
+                        location = 'NY'
             
             # Method 3: Fallback - just state
             if location == "N/A":
@@ -1209,15 +1161,9 @@ class CopartScraper:
                 elif re.search(r'\b(DC|District of Columbia|Washington DC)\b', page_source, re.IGNORECASE):
                     location = 'DC'
                     location_text = 'DC'
-                elif re.search(r'\b(OH|Ohio)\b', page_source, re.IGNORECASE):
-                    location = 'OH'
-                    location_text = 'OH'
-                elif re.search(r'\b(GA|Georgia)\b', page_source, re.IGNORECASE):
-                    location = 'GA'
-                    location_text = 'GA'
-                elif re.search(r'\b(MI|Michigan)\b', page_source, re.IGNORECASE):
-                    location = 'MI'
-                    location_text = 'MI'
+                elif re.search(r'\b(NY|New York)\b', page_source, re.IGNORECASE):
+                    location = 'NY'
+                    location_text = 'NY'
             
             vehicle["location"] = location_text
             vehicle["location_state"] = location
@@ -1250,14 +1196,8 @@ class CopartScraper:
                             elif re.search(r'\b(DC|District of Columbia|Washington DC)\b', lane_text, re.IGNORECASE):
                                 location_lane_state = 'DC'
                                 break
-                            elif re.search(r'\b(OH|Ohio)\b', lane_text, re.IGNORECASE):
-                                location_lane_state = 'OH'
-                                break
-                            elif re.search(r'\b(GA|Georgia)\b', lane_text, re.IGNORECASE):
-                                location_lane_state = 'GA'
-                                break
-                            elif re.search(r'\b(MI|Michigan)\b', lane_text, re.IGNORECASE):
-                                location_lane_state = 'MI'
+                            elif re.search(r'\b(NY|New York)\b', lane_text, re.IGNORECASE):
+                                location_lane_state = 'NY'
                                 break
                     if location_lane_state != "N/A":
                         break
@@ -1267,8 +1207,8 @@ class CopartScraper:
             # Also search in page source for Location/Lane patterns
             if location_lane_state == "N/A":
                 location_lane_patterns = [
-                    r'(?:Location\s*/\s*Lane|Location/Lane)[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
-                    r'Lane[:\s]+[^<\n]{0,50}?\b(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
+                    r'(?:Location\s*/\s*Lane|Location/Lane)[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
+                    r'Lane[:\s]+[^<\n]{0,50}?\b(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
                 ]
                 for pattern in location_lane_patterns:
                     match = re.search(pattern, page_source, re.IGNORECASE)
@@ -1283,14 +1223,8 @@ class CopartScraper:
                         elif state_text.upper() in ['DC', 'DISTRICT OF COLUMBIA']:
                             location_lane_state = 'DC'
                             break
-                        elif state_text.upper() in ['OH', 'OHIO']:
-                            location_lane_state = 'OH'
-                            break
-                        elif state_text.upper() in ['GA', 'GEORGIA']:
-                            location_lane_state = 'GA'
-                            break
-                        elif state_text.upper() in ['MI', 'MICHIGAN']:
-                            location_lane_state = 'MI'
+                        elif state_text.upper() in ['NY', 'NEW YORK']:
+                            location_lane_state = 'NY'
                             break
                     if location_lane_state != "N/A":
                         break
@@ -1329,14 +1263,8 @@ class CopartScraper:
                             elif re.search(r'\b(DC|District of Columbia|Washington DC)\b', sale_text, re.IGNORECASE):
                                 sale_doc_state = 'DC'
                                 break
-                            elif re.search(r'\b(OH|Ohio)\b', sale_text, re.IGNORECASE):
-                                sale_doc_state = 'OH'
-                                break
-                            elif re.search(r'\b(GA|Georgia)\b', sale_text, re.IGNORECASE):
-                                sale_doc_state = 'GA'
-                                break
-                            elif re.search(r'\b(MI|Michigan)\b', sale_text, re.IGNORECASE):
-                                sale_doc_state = 'MI'
+                            elif re.search(r'\b(NY|New York)\b', sale_text, re.IGNORECASE):
+                                sale_doc_state = 'NY'
                                 break
                     if sale_doc_state != "N/A":
                         break
@@ -1347,15 +1275,15 @@ class CopartScraper:
             if sale_doc_state == "N/A":
                 sale_doc_patterns = [
                     # Look for "Sale doc" or "Sale document" followed by state (within 50 chars)
-                    r'(?:Sale\s+doc[ument]*|saleDoc)[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
+                    r'(?:Sale\s+doc[ument]*|saleDoc)[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
                     # Look for "Sale location" followed by state
-                    r'Sale\s+location[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
+                    r'Sale\s+location[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
                     # Look for "Document location" followed by state
-                    r'Document\s+location[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
+                    r'Document\s+location[:\s]*[^<\n]{0,50}?\b(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
                     # Look in data attributes
-                    r'data-sale-doc[^=]*=[^>]*?\b(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)\b',
+                    r'data-sale-doc[^=]*=[^>]*?\b(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
                     # Look in JSON-like structures
-                    r'["\']saleDoc["\'][^}]*?["\'](MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)["\']',
+                    r'["\']saleDoc["\'][^}]*?["\'](MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)["\']',
                 ]
                 for pattern in sale_doc_patterns:
                     match = re.search(pattern, page_source, re.IGNORECASE)
@@ -1371,14 +1299,8 @@ class CopartScraper:
                         elif state_text.upper() in ['DC', 'DISTRICT OF COLUMBIA']:
                             sale_doc_state = 'DC'
                             break
-                        elif state_text.upper() in ['OH', 'OHIO']:
-                            sale_doc_state = 'OH'
-                            break
-                        elif state_text.upper() in ['GA', 'GEORGIA']:
-                            sale_doc_state = 'GA'
-                            break
-                        elif state_text.upper() in ['MI', 'MICHIGAN']:
-                            sale_doc_state = 'MI'
+                        elif state_text.upper() in ['NY', 'NEW YORK']:
+                            sale_doc_state = 'NY'
                             break
                     if sale_doc_state != "N/A":
                         break
@@ -1390,7 +1312,7 @@ class CopartScraper:
                 for script in script_tags:
                     if script.string:
                         # Look for state codes near "sale" or "doc" keywords
-                        json_match = re.search(r'(?:sale|doc|location).*?(MD|NJ|DC|OH|GA|MI|Maryland|New Jersey|District of Columbia|Ohio|Georgia|Michigan)', script.string, re.IGNORECASE)
+                        json_match = re.search(r'(?:sale|doc|location).*?(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)', script.string, re.IGNORECASE)
                         if json_match:
                             state_text = json_match.group(1).strip()
                             if state_text.upper() in ['MD', 'MARYLAND']:
@@ -1402,14 +1324,8 @@ class CopartScraper:
                             elif state_text.upper() in ['DC', 'DISTRICT OF COLUMBIA']:
                                 sale_doc_state = 'DC'
                                 break
-                            elif state_text.upper() in ['OH', 'OHIO']:
-                                sale_doc_state = 'OH'
-                                break
-                            elif state_text.upper() in ['GA', 'GEORGIA']:
-                                sale_doc_state = 'GA'
-                                break
-                            elif state_text.upper() in ['MI', 'MICHIGAN']:
-                                sale_doc_state = 'MI'
+                            elif state_text.upper() in ['NY', 'NEW YORK']:
+                                sale_doc_state = 'NY'
                                 break
                 if sale_doc_state != "N/A":
                     pass  # Found it
@@ -1532,21 +1448,21 @@ class CopartScraper:
             vehicle["title"] = title
             
             # STRICT FILTERING - VERIFY FROM PAGE SOURCE AND SALE DOC
-            # 1. Check location (must be MD, DC, NJ, OH, GA, or MI) - FINAL VERIFICATION
+            # 1. Check location (must be MD, DC, NJ, or NY) - FINAL VERIFICATION
             location_state = vehicle.get("location_state", "N/A")
             
-            # CRITICAL: Check Sale Document field - MUST include MD, DC, NJ, OH, GA, or MI
+            # CRITICAL: Check Sale Document field - MUST include MD, DC, NJ, or NY
             # This is the PRIMARY check - Sale doc location is the most reliable
             if sale_doc_state != "N/A":
                 print(f"  ✓ Sale doc found: {sale_doc_state}")
-                if sale_doc_state not in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
-                    print(f"  ❌ FILTERED OUT: Sale doc shows '{sale_doc_state}' which is NOT MD/DC/NJ/OH/GA/MI")
+                if sale_doc_state not in ['MD', 'DC', 'NJ', 'NY']:
+                    print(f"  ❌ FILTERED OUT: Sale doc shows '{sale_doc_state}' which is NOT MD/DC/NJ/NY")
                     return None
                 # Sale doc is the authoritative source - use it
                 location_state = sale_doc_state
                 vehicle["location_state"] = sale_doc_state
                 # Update location text if needed
-                if vehicle.get("location") == "N/A" or vehicle.get("location") not in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
+                if vehicle.get("location") == "N/A" or vehicle.get("location") not in ['MD', 'DC', 'NJ', 'NY']:
                     vehicle["location"] = sale_doc_state
                 # If location_state was different, log it but use Sale doc
                 if vehicle.get("location_state", "N/A") != sale_doc_state:
@@ -1555,8 +1471,8 @@ class CopartScraper:
                 # If sale doc not found, check Location/Lane field
                 if location_lane_state != "N/A":
                     print(f"  ✓ Location/Lane found: {location_lane_state}")
-                    if location_lane_state not in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
-                        print(f"  ❌ FILTERED OUT: Location/Lane shows '{location_lane_state}' which is NOT MD/DC/NJ/OH/GA/MI")
+                    if location_lane_state not in ['MD', 'DC', 'NJ', 'NY']:
+                        print(f"  ❌ FILTERED OUT: Location/Lane shows '{location_lane_state}' which is NOT MD/DC/NJ/NY")
                         return None
                     # Use Location/Lane as location state
                     location_state = location_lane_state
@@ -1566,12 +1482,12 @@ class CopartScraper:
                 else:
                     # If neither Sale doc nor Location/Lane found, verify location field
                     print(f"  ⚠️  Sale doc and Location/Lane not found - verifying location only")
-                    if location_state not in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
-                        print(f"  ❌ FILTERED OUT: Location '{location_state}' is NOT MD/DC/NJ/OH/GA/MI")
+                    if location_state not in ['MD', 'DC', 'NJ', 'NY']:
+                        print(f"  ❌ FILTERED OUT: Location '{location_state}' is NOT MD/DC/NJ/NY")
                         return None
             
             # Double-check location from page source
-            if location_state not in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
+            if location_state not in ['MD', 'DC', 'NJ', 'NY']:
                 # Final check: search page one more time
                 final_check = "N/A"
                 if re.search(r'\b(MD|Maryland)\b', page_source, re.IGNORECASE):
@@ -1585,30 +1501,22 @@ class CopartScraper:
                         final_check = 'NJ'
                 elif re.search(r'\b(DC|District of Columbia|Washington DC)\b', page_source, re.IGNORECASE):
                     final_check = 'DC'
-                elif re.search(r'\b(OH|Ohio)\b', page_source, re.IGNORECASE):
-                    oh_context = re.search(r'[^A-Za-z](OH|Ohio)[^A-Za-z]', page_source, re.IGNORECASE)
-                    if oh_context:
-                        final_check = 'OH'
-                elif re.search(r'\b(GA|Georgia)\b', page_source, re.IGNORECASE):
-                    ga_context = re.search(r'[^A-Za-z](GA|Georgia)[^A-Za-z]', page_source, re.IGNORECASE)
-                    if ga_context:
-                        final_check = 'GA'
-                elif re.search(r'\b(MI|Michigan)\b', page_source, re.IGNORECASE):
-                    mi_context = re.search(r'[^A-Za-z](MI|Michigan)[^A-Za-z]', page_source, re.IGNORECASE)
-                    if mi_context:
-                        final_check = 'MI'
+                elif re.search(r'\b(NY|New York)\b', page_source, re.IGNORECASE):
+                    ny_context = re.search(r'[^A-Za-z](NY|New York)[^A-Za-z]', page_source, re.IGNORECASE)
+                    if ny_context:
+                        final_check = 'NY'
                 
-                if final_check in ['MD', 'DC', 'NJ', 'OH', 'GA', 'MI']:
+                if final_check in ['MD', 'DC', 'NJ', 'NY']:
                     vehicle["location_state"] = final_check
                     if vehicle.get("location") == "N/A" or vehicle.get("location") == location_state:
                         vehicle["location"] = final_check
                     location_state = final_check
                 else:
-                    print(f"  ❌ FILTERED OUT: Location '{location_state}' is NOT MD/DC/NJ/OH/GA/MI (verified from Copart page)")
+                    print(f"  ❌ FILTERED OUT: Location '{location_state}' is NOT MD/DC/NJ/NY (verified from Copart page)")
                     return None
             
             # Final verification - location_state MUST be one of our allowed states
-            if location_state not in ['MD', 'DC', 'NJ']:
+            if location_state not in ['MD', 'DC', 'NJ', 'NY']:
                 print(f"  ❌ FILTERED OUT: Final location check failed - '{location_state}'")
                 return None
             

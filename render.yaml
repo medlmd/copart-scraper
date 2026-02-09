@@ -2,7 +2,7 @@ services:
   - type: web
     name: copart-scraper
     env: python
-    buildCommand: pip install --upgrade pip setuptools wheel && bash build.sh
+    buildCommand: python3 --version && python3 -m pip install --upgrade pip setuptools wheel && bash build.sh
     startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT --timeout 600 --preload app:app
     envVars:
       - key: PYTHON_VERSION

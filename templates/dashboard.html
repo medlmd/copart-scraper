@@ -53,6 +53,8 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
         }
 
         .refresh-btn {
@@ -211,22 +213,163 @@
             color: #666;
         }
 
+        /* Mobile Responsive Styles */
         @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                max-width: 100%;
+            }
+
+            .header {
+                padding: 20px 15px;
+                margin-bottom: 15px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+                margin-bottom: 8px;
+            }
+
+            .header p {
+                font-size: 0.9em;
+                line-height: 1.4;
+            }
+
+            .header .filter-info {
+                font-size: 0.85em;
+                margin-top: 8px;
+            }
+
+            .dashboard {
+                padding: 15px;
+                border-radius: 8px;
+            }
+
             .controls {
                 flex-direction: column;
                 gap: 15px;
+                margin-bottom: 15px;
+            }
+
+            .stats {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .stat-card {
+                flex: 1;
+                min-width: 0;
+                padding: 12px 15px;
+            }
+
+            .stat-label {
+                font-size: 0.8em;
+            }
+
+            .stat-value {
+                font-size: 1.3em;
             }
 
             .refresh-btn {
                 width: 100%;
+                padding: 14px 20px;
+                font-size: 1em;
+                min-height: 48px; /* Touch-friendly */
+            }
+
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -15px;
+                padding: 0 15px;
             }
 
             table {
+                font-size: 0.85em;
+                min-width: 600px; /* Force horizontal scroll */
+            }
+
+            th {
+                padding: 10px 8px;
+                font-size: 0.85em;
+                white-space: nowrap;
+            }
+
+            td {
+                padding: 10px 8px;
+                font-size: 0.85em;
+            }
+
+            .badge {
+                font-size: 0.75em;
+                padding: 4px 10px;
+            }
+
+            .link {
+                font-size: 0.9em;
+                word-break: break-all;
+            }
+
+            .error {
+                padding: 15px;
                 font-size: 0.9em;
             }
 
+            .empty-state {
+                padding: 40px 15px;
+                font-size: 0.95em;
+            }
+
+            .loading {
+                padding: 30px 15px;
+                font-size: 1em;
+            }
+        }
+
+        /* Extra small phones */
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+
+            .header {
+                padding: 15px 12px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .header p {
+                font-size: 0.85em;
+            }
+
+            .header .filter-info {
+                font-size: 0.8em;
+            }
+
+            .dashboard {
+                padding: 12px;
+            }
+
+            .stat-card {
+                padding: 10px 12px;
+            }
+
+            .stat-value {
+                font-size: 1.2em;
+            }
+
+            table {
+                font-size: 0.8em;
+                min-width: 550px;
+            }
+
             th, td {
-                padding: 10px 8px;
+                padding: 8px 6px;
             }
         }
     </style>

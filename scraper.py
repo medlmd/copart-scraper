@@ -599,7 +599,94 @@ class CopartScraper:
             print(f"Error extracting vehicles: {str(e)}")
             import traceback
             traceback.print_exc()
-            return all_vehicles
+            return filtered_vehicles
+    
+    def _fetch_images_from_lot_page(self, lot_number):
+        """Fetch high-quality images from a specific lot page"""
+        if not self.page:
+            return []
+        
+        try:
+            # Remove "1-" prefix if present
+            if lot_number.startswith('1-'):
+                lot_number = lot_number[2:]
+            
+            copart_url = f"https://www.copart.com/lot/{lot_number}"
+            
+            # Navigate to the lot page
+            self.page.goto(copart_url, wait_until='networkidle', timeout=20000)
+            time.sleep(2)  # Wait for images to load
+            
+            # Get page source
+            page_source = self.page.content()
+            soup = BeautifulSoup(page_source, 'html.parser')
+            
+            images = []
+            
+            # Method 1: Look for high-quality image attributes
+            img_tags = soup.find_all('img')
+            for img in img_tags:
+                # Prioritize high-quality attributes
+                img_src = img.get('data-full') or img.get('data-original') or img.get('data-src') or img.get('src') or img.get('data-lazy-src')
+                if img_src and ('vehicle' in img_src.lower() or 'lot' in img_src.lower() or 'copart' in img_src.lower() or 'cs.copart.com' in img_src.lower()):
+                    if img_src.startswith('//'):
+                        img_src = 'https:' + img_src
+                    elif img_src.startswith('/'):
+                        img_src = 'https://www.copart.com' + img_src
+                    # Replace thumbnail/small sizes with full size
+                    img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/')
+                    # Remove size parameters
+                    img_src = re.sub(r'[?&](width|height|w|h|size|quality)=\d+', '', img_src)
+                    if img_src.startswith('http'):
+                        images.append(img_src)
+            
+            # Method 2: Look for Copart's standard image URLs in page source
+            # Pattern: https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot}/full/{lot}_{num}.jpg
+            copart_image_pattern = rf'https://cs\.copart\.com/v1/AUTH_svc\.pdoc/00000/{lot_number}/full/{lot_number}_\d+\.jpg'
+            image_matches = re.findall(copart_image_pattern, page_source, re.IGNORECASE)
+            for img_url in image_matches:
+                if img_url not in images:
+                    images.append(img_url)
+            
+            # Method 3: Try to find image gallery or carousel
+            # Look for data attributes that might contain image URLs
+            data_attrs = soup.find_all(attrs={'data-image': True})
+            for elem in data_attrs:
+                img_src = elem.get('data-image')
+                if img_src:
+                    if img_src.startswith('//'):
+                        img_src = 'https:' + img_src
+                    elif img_src.startswith('/'):
+                        img_src = 'https://www.copart.com' + img_src
+                    img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/')
+                    img_src = re.sub(r'[?&](width|height|w|h|size|quality)=\d+', '', img_src)
+                    if img_src.startswith('http') and img_src not in images:
+                        images.append(img_src)
+            
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_images = []
+            for img in images:
+                if img not in seen:
+                    seen.add(img)
+                    unique_images.append(img)
+            
+            # If we found images, return them
+            if unique_images:
+                return unique_images
+            
+            # Fallback: Try Copart's standard high-quality image URLs
+            default_images = []
+            for img_num in range(1, 6):
+                default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
+            return default_images
+            
+        except Exception as e:
+            # Return default high-quality URLs as fallback
+            default_images = []
+            for img_num in range(1, 6):
+                default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
+            return default_images
     
     def scrape_copart_lot(self, lot_number):
         """Scrape a single Copart lot page"""

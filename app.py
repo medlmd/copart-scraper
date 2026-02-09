@@ -34,10 +34,21 @@ def refresh_data():
                 'error': 'Scraper not available. Chrome/ChromeDriver may not be installed on this platform.'
             }), 500
         
+        print("=" * 80)
         print("Starting scrape from Flask API...")
+        print("=" * 80)
         # Scrape new data (maximum possible)
         vehicles = scrape_func(limit=1000)  # High limit to scrape as many as possible
+        print("=" * 80)
         print(f"Scrape completed. Found {len(vehicles)} vehicles")
+        print("=" * 80)
+        
+        if len(vehicles) == 0:
+            print("⚠️  WARNING: No vehicles found. This could indicate:")
+            print("   1. Chrome/ChromeDriver not available on this platform")
+            print("   2. Network/connection issues")
+            print("   3. Copart website blocking requests")
+            print("   4. Search criteria too strict")
         
         # Update cached data
         global cached_data

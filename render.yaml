@@ -2,10 +2,14 @@ services:
   - type: web
     name: copart-scraper
     env: python
-    buildCommand: pip install --upgrade pip setuptools wheel && pip install --no-cache-dir -r requirements.txt && pip install --no-cache-dir gunicorn
+    buildCommand: bash build.sh
     startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT --timeout 600 --preload app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: DISPLAY
         value: ":99"
+      - key: CHROME_BIN
+        value: /usr/bin/chromium-browser
+      - key: CHROMEDRIVER_PATH
+        value: /usr/bin/chromedriver

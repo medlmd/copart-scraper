@@ -43,8 +43,37 @@ gunicorn -w 1 -b 0.0.0.0:8080 --timeout 600 app:app
 - Chrome/Chromium (for scraping)
 - ChromeDriver (auto-managed by webdriver-manager)
 
+## ⚠️ IMPORTANT: Chrome/ChromeDriver on Render.com
+
+**Problem:** Render.com's free tier does NOT have Chrome/Chromium installed by default, which causes scraping to fail with "No Vehicles Found".
+
+**Solutions:**
+
+### Option 1: Use Docker (Recommended)
+If Render supports Docker, use the provided `Dockerfile` which includes Chrome installation.
+
+### Option 2: Upgrade to Paid Tier
+Render's paid tiers may have Chrome available or allow system package installation.
+
+### Option 3: Use Alternative Platform
+Consider platforms that support Chrome out of the box:
+- **Railway.app** - Better support for system packages
+- **Fly.io** - Good Docker support
+- **Heroku** - Has buildpacks for Chrome
+
+### Option 4: Check Render Logs
+1. Go to your Render dashboard
+2. Click on your service
+3. Check "Logs" tab
+4. Look for ChromeDriver errors when clicking "Refresh Data"
+
+**Common Error Messages:**
+- `ChromeDriver path not found` → Chrome not installed
+- `No vehicles found` → ChromeDriver failed silently
+- `Error setting up ChromeDriver` → Check logs for details
+
 ## Notes
 
 - The app uses lazy loading - ChromeDriver only initializes when scraping
 - App will start even if Chrome is not available (scraping will show error)
-- Free tier on Render may have limitations with Chrome/Selenium
+- Check Render logs to see actual ChromeDriver errors

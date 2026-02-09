@@ -28,37 +28,66 @@ class CopartScraper:
         chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--disable-dev-shm-usage')
+        chrome_options.add_argument('--disable-gpu')
         chrome_options.add_argument('--disable-blink-features=AutomationControlled')
         chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         chrome_options.add_experimental_option('useAutomationExtension', False)
         chrome_options.add_argument('user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
         
+        # Check for Chrome/Chromium in cloud environments (Render, Heroku, etc.)
+        chrome_bin = os.environ.get('CHROME_BIN', None)
+        if chrome_bin and os.path.isfile(chrome_bin):
+            chrome_options.binary_location = chrome_bin
+            print(f"Using Chrome binary from environment: {chrome_bin}")
+        
+        # Check for ChromeDriver path in environment (cloud platforms)
+        chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', None)
+        
         try:
-            # Try known ChromeDriver location first
-            known_paths = [
-                "/Users/lmd/.wdm/drivers/chromedriver/mac64/144.0.7559.96/chromedriver-mac-arm64/chromedriver",
-            ]
-            
             driver_path = None
-            for path in known_paths:
-                if os.path.isfile(path):
-                    try:
-                        with open(path, 'rb') as f:
-                            header = f.read(4)
-                            if header and len(header) == 4:
-                                driver_path = path
-                                break
-                    except:
-                        continue
             
-            if driver_path:
-                service = Service(driver_path)
-                self.driver = webdriver.Chrome(service=service, options=chrome_options)
-            else:
-                # Fallback to webdriver-manager
-                driver_path = ChromeDriverManager().install()
-                service = Service(driver_path)
-                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            # Priority 1: Use environment variable path (cloud platforms)
+            if chromedriver_path and os.path.isfile(chromedriver_path):
+                driver_path = chromedriver_path
+                print(f"Using ChromeDriver from environment: {chromedriver_path}")
+            
+            # Priority 2: Try known local ChromeDriver locations
+            if not driver_path:
+                known_paths = [
+                    "/Users/lmd/.wdm/drivers/chromedriver/mac64/144.0.7559.96/chromedriver-mac-arm64/chromedriver",
+                    "/usr/bin/chromedriver",
+                    "/usr/local/bin/chromedriver",
+                ]
+                
+                for path in known_paths:
+                    if os.path.isfile(path):
+                        try:
+                            with open(path, 'rb') as f:
+                                header = f.read(4)
+                                if header and len(header) == 4:
+                                    driver_path = path
+                                    print(f"Using ChromeDriver from known path: {path}")
+                                    break
+                        except:
+                            continue
+            
+            # Priority 3: Use webdriver-manager (fallback)
+            if not driver_path:
+                print("ChromeDriver not found in known paths, using webdriver-manager...")
+                try:
+                    driver_path = ChromeDriverManager().install()
+                    print(f"ChromeDriver installed via webdriver-manager: {driver_path}")
+                except Exception as e:
+                    print(f"webdriver-manager failed: {e}")
+                    raise Exception(f"Could not install ChromeDriver. Error: {e}")
+            
+            if not driver_path:
+                raise Exception("ChromeDriver path not found and could not be installed")
+            
+            # Create service and driver
+            service = Service(driver_path)
+            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            print("✅ ChromeDriver initialized successfully")
             
             # Execute script to hide webdriver property
             self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
@@ -70,8 +99,11 @@ class CopartScraper:
             })
             
         except Exception as e:
-            print(f"Error setting up ChromeDriver: {str(e)}")
-            raise
+            error_msg = f"Error setting up ChromeDriver: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            raise Exception(f"{error_msg}. Make sure Chrome/Chromium and ChromeDriver are installed.")
     
     def close(self):
         """Close the browser driver"""
@@ -88,12 +120,19 @@ class CopartScraper:
         # Initialize driver if not already done
         if not self.driver:
             try:
+                print("Initializing ChromeDriver...")
                 self.setup_driver()
+                if not self.driver:
+                    print("❌ ChromeDriver initialization failed - driver is None")
+                    return vehicles
             except Exception as e:
-                print(f"Error initializing ChromeDriver: {e}")
+                print(f"❌ Error initializing ChromeDriver: {e}")
+                import traceback
+                traceback.print_exc()
                 return vehicles
         
         if not self.driver:
+            print("❌ No ChromeDriver available - cannot scrape")
             return vehicles
         
         try:

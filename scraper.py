@@ -626,6 +626,9 @@ class CopartScraper:
                             # Store cleaned high-quality images
                             vehicle["images"] = high_quality_images
                             print(f"      ✅ Found {len(high_quality_images)} high-quality images (cleaned for max quality)")
+                            print(f"      📸 Image URLs for lot {lot_number}:")
+                            for idx, img_url in enumerate(high_quality_images, 1):
+                                print(f"         {idx}. {img_url}")
                         else:
                             # Fallback to default high-quality URLs
                             default_images = []
@@ -633,6 +636,9 @@ class CopartScraper:
                                 default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
                             vehicle["images"] = default_images
                             print(f"      ⚠️  Using default high-quality image URLs ({len(default_images)} images)")
+                            print(f"      📸 Default image URLs for lot {lot_number}:")
+                            for idx, img_url in enumerate(default_images, 1):
+                                print(f"         {idx}. {img_url}")
                     except Exception as e:
                         print(f"      ⚠️  Error fetching images: {e}")
                         import traceback
@@ -643,6 +649,9 @@ class CopartScraper:
                             default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
                         vehicle["images"] = default_images
                         print(f"      ✅ Using fallback high-quality URLs ({len(default_images)} images)")
+                        print(f"      📸 Fallback image URLs for lot {lot_number}:")
+                        for idx, img_url in enumerate(default_images, 1):
+                            print(f"         {idx}. {img_url}")
                 else:
                     # Vehicle has no lot number - use empty images
                     vehicle["images"] = []

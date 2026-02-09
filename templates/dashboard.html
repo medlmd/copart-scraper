@@ -340,6 +340,9 @@
                 height: 100%;
                 object-fit: cover;
                 display: block;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: crisp-edges;
+                image-rendering: high-quality;
             }
 
             .vehicle-card-image-nav {
@@ -699,7 +702,14 @@
                         html += '<div class="vehicle-card-image-container">';
                         html += '<div class="vehicle-card-images" id="' + cardId + '-images">';
                         images.forEach((img, imgIndex) => {
-                            html += `<img src="${img}" alt="Vehicle ${imgIndex + 1}" class="vehicle-card-image" onerror="this.src=\'https://via.placeholder.com/400x200?text=No+Image\'">`;
+                            // Ensure maximum quality - remove any size/quality parameters and use full resolution
+                            let highQualityImg = img;
+                            // Remove size parameters
+                            highQualityImg = highQualityImg.replace(/[?&](width|height|w|h|size|quality)=\d+/gi, '');
+                            // Replace thumbnail/small/medium with full
+                            highQualityImg = highQualityImg.replace(/\/thumb\//gi, '/full/').replace(/\/small\//gi, '/full/').replace(/\/medium\//gi, '/full/');
+                            // Add loading="lazy" for performance but keep quality
+                            html += `<img src="${highQualityImg}" alt="Vehicle ${imgIndex + 1}" class="vehicle-card-image" loading="lazy" onerror="this.src=\'https://via.placeholder.com/800x400?text=No+Image\'">`;
                         });
                         html += '</div>';
                         

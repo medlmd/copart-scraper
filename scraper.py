@@ -301,18 +301,23 @@ class CopartScraper:
         row_text = row_element.get_text()
         row_html = str(row_element)
         
-        # Extract images from the row
+        # Extract images from the row - prioritize high quality
         images = []
         # Look for img tags in the row
         img_tags = row_element.find_all('img')
         for img in img_tags:
-            img_src = img.get('src') or img.get('data-src') or img.get('data-lazy-src')
+            # Try multiple attributes in order of preference (high quality first)
+            img_src = img.get('data-full') or img.get('data-original') or img.get('data-src') or img.get('src') or img.get('data-lazy-src')
             if img_src:
                 # Convert relative URLs to absolute
                 if img_src.startswith('//'):
                     img_src = 'https:' + img_src
                 elif img_src.startswith('/'):
                     img_src = 'https://www.copart.com' + img_src
+                # Replace thumbnail/small sizes with full size
+                img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/')
+                # Remove size parameters
+                img_src = re.sub(r'[?&](width|height|w|h|size|quality)=\d+', '', img_src)
                 if img_src.startswith('http') and 'copart' in img_src.lower():
                     images.append(img_src)
         
@@ -327,11 +332,21 @@ class CopartScraper:
                     img_src = 'https:' + img_src
                 elif img_src.startswith('/'):
                     img_src = 'https://www.copart.com' + img_src
+                # Replace thumbnail/small sizes with full size
+                img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/')
+                # Remove size parameters
+                img_src = re.sub(r'[?&](width|height|w|h|size|quality)=\d+', '', img_src)
                 if img_src.startswith('http') and 'copart' in img_src.lower():
                     images.append(img_src)
         
-        # If no images found, try to construct image URL from lot number (after we extract it)
-        # Copart typically uses: https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_1.jpg
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_images = []
+        for img in images:
+            if img not in seen:
+                seen.add(img)
+                unique_images.append(img)
+        images = unique_images
         
         vehicle["images"] = images
         

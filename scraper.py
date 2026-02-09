@@ -526,7 +526,7 @@ class CopartScraper:
             print(f"  Search 2 returned {len(vehicles_2)} vehicles")
             all_vehicles.extend(vehicles_2)
             
-            # Filter vehicles by location and title
+            # Filter vehicles by location, title, and odometer
             filtered_vehicles = []
             for vehicle in all_vehicles:
                 # Check location
@@ -539,6 +539,21 @@ class CopartScraper:
                 url = vehicle.get("url", "").upper()
                 if "SALVAGE" not in title and "SALVAGE" not in url:
                     # Check if href contains salvage (most reliable)
+                    continue
+                
+                # Filter by odometer (must be under 100,000 miles)
+                odometer = vehicle.get('odometer', 'N/A')
+                if odometer != 'N/A':
+                    try:
+                        # Remove commas and convert to int
+                        odometer_value = int(str(odometer).replace(',', '').replace(' ', ''))
+                        if odometer_value >= 100000:
+                            continue  # Skip vehicles with 100,000+ miles
+                    except (ValueError, AttributeError):
+                        # If odometer can't be parsed, skip this vehicle
+                        continue
+                else:
+                    # If odometer is N/A, skip this vehicle (we only want vehicles with known odometer)
                     continue
                 
                 filtered_vehicles.append(vehicle)
@@ -1240,7 +1255,25 @@ class CopartScraper:
                 print(f"  ❌ Filtered out: Title '{vehicle.get('title')}' does not contain 'Salvage'")
                 return None
             
-            # 3. Check for upcoming/future
+            # 3. Filter by odometer (must be under 100,000 miles)
+            odometer = vehicle.get('odometer', 'N/A')
+            if odometer != 'N/A':
+                try:
+                    # Remove commas and convert to int
+                    odometer_value = int(str(odometer).replace(',', '').replace(' ', ''))
+                    if odometer_value >= 100000:
+                        print(f"  ❌ Filtered out: Odometer {odometer_value:,} miles is >= 100,000")
+                        return None
+                except (ValueError, AttributeError):
+                    # If odometer can't be parsed, skip this vehicle
+                    print(f"  ❌ Filtered out: Odometer '{odometer}' cannot be parsed")
+                    return None
+            else:
+                # If odometer is N/A, skip this vehicle (we only want vehicles with known odometer)
+                print(f"  ❌ Filtered out: Odometer is N/A (we only want vehicles with known odometer)")
+                return None
+            
+            # 4. Check for upcoming/future
             if body_text:
                 upcoming_patterns = [
                     r'upcoming\s+auction',

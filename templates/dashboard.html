@@ -706,20 +706,31 @@
                         html += '<div class="vehicle-card-image-container">';
                         html += '<div class="vehicle-card-images" id="' + cardId + '-images">';
                         images.forEach((img, imgIndex) => {
-                            // Ensure MAXIMUM quality for ALL images - remove any size/quality parameters and use full resolution
-                            let highQualityImg = img;
-                            // Remove ALL size/quality/scale parameters
+                            // CRITICAL: Ensure MAXIMUM quality for EVERY image - clean ALL image URLs
+                            let highQualityImg = String(img).trim();
+                            
+                            // Step 1: Replace ALL size paths with /full/ for maximum quality
+                            highQualityImg = highQualityImg.replace(/\/thumb\//gi, '/full/');
+                            highQualityImg = highQualityImg.replace(/\/small\//gi, '/full/');
+                            highQualityImg = highQualityImg.replace(/\/medium\//gi, '/full/');
+                            highQualityImg = highQualityImg.replace(/\/large\//gi, '/full/');
+                            
+                            // Step 2: Remove ALL size/quality/scale/resize parameters
                             highQualityImg = highQualityImg.replace(/[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+/gi, '');
-                            // Replace thumbnail/small/medium/large with full for maximum quality
-                            highQualityImg = highQualityImg.replace(/\/thumb\//gi, '/full/')
-                                .replace(/\/small\//gi, '/full/')
-                                .replace(/\/medium\//gi, '/full/')
-                                .replace(/\/large\//gi, '/full/');
-                            // Ensure Copart images use /full/ path
+                            
+                            // Step 3: Ensure Copart images use /full/ path
                             if (highQualityImg.includes('cs.copart.com')) {
                                 highQualityImg = highQualityImg.replace(/\/(thumb|small|medium|large)\//gi, '/full/');
+                                // Fix common patterns: /00000/{lot}/{size}/ -> /00000/{lot}/full/
+                                highQualityImg = highQualityImg.replace(/\/(\d+)\/(thumb|small|medium|large)\//gi, '/$1/full/');
                             }
-                            // Add loading="lazy" for performance but keep MAXIMUM quality
+                            
+                            // Step 4: Remove trailing query parameters
+                            if (highQualityImg.includes('?')) {
+                                highQualityImg = highQualityImg.split('?')[0];
+                            }
+                            
+                            // Step 5: Add image with MAXIMUM quality
                             html += `<img src="${highQualityImg}" alt="Vehicle ${imgIndex + 1}" class="vehicle-card-image" loading="lazy" onerror="this.src=\'https://via.placeholder.com/800x400?text=No+Image\'">`;
                         });
                         html += '</div>';

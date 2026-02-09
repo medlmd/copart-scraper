@@ -577,43 +577,68 @@ class CopartScraper:
                         print(f"  [{i}/{len(filtered_vehicles)}] Fetching images for lot {lot_number}...")
                         lot_images = self._fetch_images_from_lot_page(lot_number)
                         if lot_images and len(lot_images) > 0:
-                            # Ensure all images maintain maximum quality
+                            # CRITICAL: Ensure ALL images maintain maximum quality - clean EVERY image URL
                             high_quality_images = []
                             for img_url in lot_images:
-                                # Clean URL to ensure maximum quality
-                                clean_url = img_url
-                                # Replace thumbnail/small/medium with full
-                                clean_url = clean_url.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/')
-                                # Remove any size/quality parameters
-                                clean_url = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize)=\d+', '', clean_url)
-                                # Ensure it's using /full/ path for Copart images
-                                if 'cs.copart.com' in clean_url and '/full/' not in clean_url:
-                                    # Try to replace any size path with /full/
-                                    clean_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', clean_url)
-                                high_quality_images.append(clean_url)
+                                # Clean URL to ensure maximum quality - apply ALL quality improvements
+                                clean_url = str(img_url).strip()
+                                
+                                # Step 1: Replace ALL size paths with /full/ for maximum quality
+                                clean_url = clean_url.replace('/thumb/', '/full/')
+                                clean_url = clean_url.replace('/small/', '/full/')
+                                clean_url = clean_url.replace('/medium/', '/full/')
+                                clean_url = clean_url.replace('/large/', '/full/')
+                                
+                                # Step 2: Remove ALL size/quality/scale/resize parameters
+                                clean_url = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+', '', clean_url)
+                                
+                                # Step 3: Ensure Copart images use /full/ path
+                                if 'cs.copart.com' in clean_url:
+                                    # Replace any size path with /full/
+                                    clean_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', clean_url, flags=re.IGNORECASE)
+                                    # Ensure /full/ is in the path
+                                    if '/full/' not in clean_url and re.search(r'/\d+/\d+_(\d+)\.jpg', clean_url):
+                                        clean_url = re.sub(r'/(\d+)/(\d+)_(\d+)\.jpg', r'/00000/\2/full/\2_\3.jpg', clean_url)
+                                
+                                # Step 4: Remove trailing query parameters that might affect quality
+                                if '?' in clean_url:
+                                    base_url = clean_url.split('?')[0]
+                                    clean_url = base_url
+                                
+                                # Step 5: Final validation - ensure it's a valid URL
+                                if clean_url.startswith('http') and 'copart' in clean_url.lower():
+                                    high_quality_images.append(clean_url)
                             
+                            # Store cleaned high-quality images
                             vehicle["images"] = high_quality_images
-                            print(f"      ✅ Found {len(high_quality_images)} high-quality images")
+                            print(f"      ✅ Found {len(high_quality_images)} high-quality images (cleaned for max quality)")
                         else:
                             # Fallback to default high-quality URLs
                             default_images = []
-                            for img_num in range(1, 6):
+                            for img_num in range(1, 11):
                                 default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
                             vehicle["images"] = default_images
                             print(f"      ⚠️  Using default high-quality image URLs ({len(default_images)} images)")
                     except Exception as e:
                         print(f"      ⚠️  Error fetching images: {e}")
+                        import traceback
+                        traceback.print_exc()
                         # Fallback to default high-quality URLs
                         default_images = []
-                        for img_num in range(1, 6):
+                        for img_num in range(1, 11):
                             default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
                         vehicle["images"] = default_images
                         print(f"      ✅ Using fallback high-quality URLs ({len(default_images)} images)")
+                else:
+                    # Vehicle has no lot number - use empty images
+                    vehicle["images"] = []
+                    print(f"      ⚠️  No lot number found, skipping image fetch")
                 
                 # Always add vehicle, even if no images found (will use defaults)
                 vehicles_with_images.append(vehicle)
             
-            print(f"\n✅ Image fetching complete: {len(vehicles_with_images)} vehicles with images")
+            print(f"\n✅ Image fetching complete: {len(vehicles_with_images)} vehicles processed")
+            print(f"   - Vehicles with images: {sum(1 for v in vehicles_with_images if v.get('images') and len(v.get('images', [])) > 0)}")
             return vehicles_with_images
             
         except Exception as e:

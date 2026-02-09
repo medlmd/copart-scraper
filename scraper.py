@@ -763,18 +763,33 @@ class CopartScraper:
             print(f"      Found {len(img_tags)} img tags with CSS classes using BeautifulSoup")
             for img in img_tags:
                 # Prioritize high-quality attributes
-                img_src = img.get('data-full') or img.get('data-original') or img.get('data-src') or img.get('src') or img.get('data-lazy-src')
-                if img_src and ('vehicle' in img_src.lower() or 'lot' in img_src.lower() or 'copart' in img_src.lower() or 'cs.copart.com' in img_src.lower()):
+                img_src = img.get('data-full') or img.get('data-original') or img.get('data-src') or img.get('src') or img.get('data-lazy-src') or img.get('data-image')
+                if img_src:
                     if img_src.startswith('//'):
                         img_src = 'https:' + img_src
                     elif img_src.startswith('/'):
                         img_src = 'https://www.copart.com' + img_src
-                    # Replace thumbnail/small sizes with full size
-                    img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/')
-                    # Remove size parameters
-                    img_src = re.sub(r'[?&](width|height|w|h|size|quality)=\d+', '', img_src)
-                    if img_src.startswith('http'):
+                    
+                    # CRITICAL: For Copart CDN images, reconstruct to maximum quality format
+                    if 'cs.copart.com' in img_src:
+                        copart_match = re.search(r'cs\.copart\.com/v1/AUTH_svc\.pdoc/(\d+)/(\d+)/(?:thumb|small|medium|large|full)/(\d+)_(\d+)\.jpg', img_src, re.IGNORECASE)
+                        if copart_match:
+                            account, lot_num, lot_num2, img_num = copart_match.groups()
+                            img_src = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_num}/full/{lot_num}_{img_num}.jpg"
+                        else:
+                            img_src = re.sub(r'/(thumb|small|medium|large)/', '/full/', img_src, flags=re.IGNORECASE)
+                            img_src = re.sub(r'/v1/AUTH_svc\.pdoc/\d+/(\d+)/', r'/v1/AUTH_svc.pdoc/00000/\1/', img_src)
+                    else:
+                        img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                    
+                    # Remove query parameters
+                    img_src = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+', '', img_src)
+                    if '?' in img_src:
+                        img_src = img_src.split('?')[0]
+                    
+                    if img_src.startswith('http') and img_src not in images:
                         images.append(img_src)
+                        print(f"         ✅ Found image from BeautifulSoup: {img_src[:80]}...")
             
             # Method 2: Construct maximum quality Copart image URLs directly
             # Copart uses: https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot}/full/{lot}_{num}.jpg

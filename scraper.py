@@ -703,6 +703,7 @@ class CopartScraper:
             # Method 2: Construct maximum quality Copart image URLs directly
             # Copart uses: https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot}/full/{lot}_{num}.jpg
             # Try image numbers 1-20 for maximum coverage
+            # IMPORTANT: Always add these URLs - they're the standard format and should work
             for img_num in range(1, 21):
                 # Use the standard maximum quality URL format
                 img_url = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg"

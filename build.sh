@@ -5,16 +5,22 @@ echo "🔧 Upgrading build tools..."
 pip install --upgrade pip setuptools wheel
 
 echo "🔧 Installing greenlet (Playwright dependency)..."
-# Try multiple installation methods for greenlet
-pip install --no-cache-dir greenlet || \
-pip install --no-cache-dir --no-build-isolation greenlet || \
+# Force binary wheel installation to avoid compilation errors
+pip install --no-cache-dir --only-binary :all: greenlet || \
 pip install --no-cache-dir --prefer-binary greenlet || \
+pip install --no-cache-dir "greenlet>=2.0.0,<4.0.0" || \
 echo "⚠️  Warning: greenlet installation had issues, continuing..."
 
 echo "🔧 Installing Python dependencies..."
-pip install --no-cache-dir -r requirements.txt || {
-    echo "⚠️  Standard installation failed, trying with --no-build-isolation..."
-    pip install --no-cache-dir --no-build-isolation -r requirements.txt
+# Try to install with binary wheels first to avoid compilation
+pip install --no-cache-dir --prefer-binary -r requirements.txt || {
+    echo "⚠️  Standard installation failed, trying with --only-binary for problematic packages..."
+    # Install playwright separately with binary preference
+    pip install --no-cache-dir --prefer-binary playwright==1.40.0 || \
+    pip install --no-cache-dir playwright==1.40.0
+    # Install other dependencies
+    pip install --no-cache-dir --prefer-binary flask requests beautifulsoup4 python-dotenv || \
+    pip install --no-cache-dir flask requests beautifulsoup4 python-dotenv
 }
 
 echo "🔧 Installing gunicorn..."

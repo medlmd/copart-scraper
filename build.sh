@@ -9,9 +9,17 @@ echo "🔧 Upgrading build tools..."
 python3 -m pip install --upgrade pip setuptools wheel || pip install --upgrade pip setuptools wheel
 
 echo "🔧 Installing greenlet (Playwright dependency)..."
-# Pin greenlet version for compatibility (works with Python 3.12)
-pip install --no-cache-dir --prefer-binary "greenlet>=3.0,<4" || \
-pip install --no-cache-dir "greenlet>=3.0,<4" || \
+# Force binary wheel installation to avoid compilation
+# Check Python version first
+PYTHON_VERSION=$(python3 --version 2>&1 | grep -oP '\d+\.\d+' | head -1 || echo "unknown")
+echo "   Detected Python version: $PYTHON_VERSION"
+
+# Try multiple strategies to install greenlet from binary wheels
+echo "   Attempting to install greenlet from pre-built wheels..."
+pip install --no-cache-dir --only-binary :all: "greenlet>=3.0.0,<4.0.0" || \
+pip install --no-cache-dir --prefer-binary "greenlet>=3.0.0,<4.0.0" || \
+pip install --no-cache-dir --only-binary :all: greenlet || \
+pip install --no-cache-dir --prefer-binary greenlet || \
 echo "⚠️  Warning: greenlet installation had issues, continuing..."
 
 echo "🔧 Installing Python dependencies..."

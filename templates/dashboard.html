@@ -307,15 +307,100 @@
                 display: block;
                 background: white;
                 border-radius: 16px;
-                padding: 16px;
+                padding: 0;
                 margin-bottom: 12px;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
                 transition: transform 0.2s, box-shadow 0.2s;
+                overflow: hidden;
             }
 
             .vehicle-card:active {
                 transform: scale(0.98);
                 box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+            }
+
+            .vehicle-card-image-container {
+                position: relative;
+                width: 100%;
+                height: 200px;
+                overflow: hidden;
+                background: #f0f0f0;
+            }
+
+            .vehicle-card-images {
+                display: flex;
+                width: 100%;
+                height: 100%;
+                transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+                will-change: transform;
+            }
+
+            .vehicle-card-image {
+                min-width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+            }
+
+            .vehicle-card-image-nav {
+                position: absolute;
+                top: 50%;
+                transform: translateY(-50%);
+                background: rgba(0, 0, 0, 0.5);
+                color: white;
+                border: none;
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                z-index: 10;
+                transition: background 0.2s;
+            }
+
+            .vehicle-card-image-nav:hover {
+                background: rgba(0, 0, 0, 0.7);
+            }
+
+            .vehicle-card-image-nav.prev {
+                left: 10px;
+            }
+
+            .vehicle-card-image-nav.next {
+                right: 10px;
+            }
+
+            .vehicle-card-image-dots {
+                position: absolute;
+                bottom: 10px;
+                left: 50%;
+                transform: translateX(-50%);
+                display: flex;
+                gap: 6px;
+                z-index: 10;
+            }
+
+            .vehicle-card-image-dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.5);
+                border: none;
+                cursor: pointer;
+                transition: background 0.2s;
+            }
+
+            .vehicle-card-image-dot.active {
+                background: white;
+                width: 24px;
+                border-radius: 4px;
+            }
+
+            .vehicle-card-content {
+                padding: 16px;
             }
 
             .vehicle-card-header {
@@ -600,10 +685,37 @@
             const isMobile = window.innerWidth <= 768;
 
             if (isMobile) {
-                // Mobile: Card-based layout
+                // Mobile: Card-based layout with images
                 let html = '';
-                vehicles.forEach(vehicle => {
-                    html += '<div class="vehicle-card">';
+                vehicles.forEach((vehicle, index) => {
+                    const cardId = `vehicle-card-${index}`;
+                    const images = vehicle.images || [];
+                    const hasImages = images.length > 0;
+                    
+                    html += `<div class="vehicle-card" id="${cardId}">`;
+                    
+                    // Image carousel
+                    if (hasImages) {
+                        html += '<div class="vehicle-card-image-container">';
+                        html += '<div class="vehicle-card-images" id="' + cardId + '-images">';
+                        images.forEach((img, imgIndex) => {
+                            html += `<img src="${img}" alt="Vehicle ${imgIndex + 1}" class="vehicle-card-image" onerror="this.src=\'https://via.placeholder.com/400x200?text=No+Image\'">`;
+                        });
+                        html += '</div>';
+                        
+                        if (images.length > 1) {
+                            html += `<button class="vehicle-card-image-nav prev" onclick="slideImage('${cardId}', -1)">‹</button>`;
+                            html += `<button class="vehicle-card-image-nav next" onclick="slideImage('${cardId}', 1)">›</button>`;
+                            html += '<div class="vehicle-card-image-dots" id="' + cardId + '-dots">';
+                            images.forEach((_, imgIndex) => {
+                                html += `<button class="vehicle-card-image-dot ${imgIndex === 0 ? 'active' : ''}" onclick="goToImage('${cardId}', ${imgIndex})"></button>`;
+                            });
+                            html += '</div>';
+                        }
+                        html += '</div>';
+                    }
+                    
+                    html += '<div class="vehicle-card-content">';
                     html += '<div class="vehicle-card-header">';
                     html += `<div><div class="vehicle-card-title">${vehicle.year || 'N/A'} ${vehicle.make || ''} ${vehicle.model || ''}</div>`;
                     html += `<div class="vehicle-card-lot">Lot #${vehicle.lot_number || 'N/A'}</div></div>`;
@@ -635,9 +747,12 @@
                     if (vehicle.url) {
                         html += `<a href="${vehicle.url}" target="_blank" class="vehicle-card-link">View on Copart →</a>`;
                     }
-                    html += '</div>';
+                    html += '</div></div>';
                 });
                 content.innerHTML = html;
+                
+                // Initialize swipe gestures for image carousels
+                initializeImageCarousels();
             } else {
                 // Desktop: Table layout
                 let html = '<div class="table-container"><table><thead><tr>';
@@ -668,6 +783,95 @@
 
                 html += '</tbody></table></div>';
                 content.innerHTML = html;
+            }
+        }
+
+        // Image carousel functions
+        const carouselStates = {};
+        
+        function initializeImageCarousels() {
+            document.querySelectorAll('.vehicle-card-image-container').forEach(container => {
+                const cardId = container.closest('.vehicle-card').id;
+                const imagesContainer = container.querySelector('.vehicle-card-images');
+                const images = imagesContainer.querySelectorAll('.vehicle-card-image');
+                
+                if (images.length <= 1) return;
+                
+                carouselStates[cardId] = {
+                    currentIndex: 0,
+                    totalImages: images.length
+                };
+                
+                // Add touch/swipe support
+                let startX = 0;
+                let currentX = 0;
+                let isDragging = false;
+                
+                container.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    isDragging = true;
+                });
+                
+                container.addEventListener('touchmove', (e) => {
+                    if (!isDragging) return;
+                    currentX = e.touches[0].clientX;
+                    const diff = currentX - startX;
+                    imagesContainer.style.transform = `translateX(calc(-${carouselStates[cardId].currentIndex * 100}% + ${diff}px))`;
+                });
+                
+                container.addEventListener('touchend', () => {
+                    if (!isDragging) return;
+                    isDragging = false;
+                    const diff = currentX - startX;
+                    const threshold = 50;
+                    
+                    if (Math.abs(diff) > threshold) {
+                        if (diff > 0 && carouselStates[cardId].currentIndex > 0) {
+                            slideImage(cardId, -1);
+                        } else if (diff < 0 && carouselStates[cardId].currentIndex < carouselStates[cardId].totalImages - 1) {
+                            slideImage(cardId, 1);
+                        } else {
+                            updateCarouselPosition(cardId);
+                        }
+                    } else {
+                        updateCarouselPosition(cardId);
+                    }
+                });
+            });
+        }
+        
+        function slideImage(cardId, direction) {
+            if (!carouselStates[cardId]) return;
+            
+            const newIndex = carouselStates[cardId].currentIndex + direction;
+            if (newIndex < 0 || newIndex >= carouselStates[cardId].totalImages) return;
+            
+            carouselStates[cardId].currentIndex = newIndex;
+            updateCarouselPosition(cardId);
+        }
+        
+        function goToImage(cardId, index) {
+            if (!carouselStates[cardId] || index < 0 || index >= carouselStates[cardId].totalImages) return;
+            
+            carouselStates[cardId].currentIndex = index;
+            updateCarouselPosition(cardId);
+        }
+        
+        function updateCarouselPosition(cardId) {
+            const card = document.getElementById(cardId);
+            if (!card) return;
+            
+            const imagesContainer = card.querySelector('.vehicle-card-images');
+            const dots = card.querySelectorAll('.vehicle-card-image-dot');
+            
+            if (imagesContainer) {
+                imagesContainer.style.transform = `translateX(-${carouselStates[cardId].currentIndex * 100}%)`;
+            }
+            
+            if (dots) {
+                dots.forEach((dot, index) => {
+                    dot.classList.toggle('active', index === carouselStates[cardId].currentIndex);
+                });
             }
         }
 

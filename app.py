@@ -26,6 +26,8 @@ def index():
 @app.route('/api/refresh', methods=['POST'])
 def refresh_data():
     """Refresh vehicle data by scraping Copart"""
+    global cached_data  # Declare global at the top of the function
+    
     try:
         scrape_func = get_scraper()
         if not scrape_func:
@@ -61,7 +63,6 @@ def refresh_data():
                 })
         
         # Update cached data
-        global cached_data
         cached_data = vehicles
         
         return jsonify({

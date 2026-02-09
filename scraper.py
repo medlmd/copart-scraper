@@ -567,6 +567,32 @@ class CopartScraper:
             print(f"   - From NY: {len(vehicles_2)}")
             print(f"   - After filtering: {len(filtered_vehicles)}")
             
+            # Fetch high-quality images from individual lot pages
+            print(f"\n📸 Fetching high-quality images from individual lot pages...")
+            for i, vehicle in enumerate(filtered_vehicles, 1):
+                lot_number = vehicle.get("lot_number", "N/A")
+                if lot_number != "N/A" and vehicle.get("url") and vehicle.get("url") != "N/A":
+                    try:
+                        print(f"  [{i}/{len(filtered_vehicles)}] Fetching images for lot {lot_number}...")
+                        lot_images = self._fetch_images_from_lot_page(lot_number)
+                        if lot_images:
+                            vehicle["images"] = lot_images
+                            print(f"      ✅ Found {len(lot_images)} high-quality images")
+                        else:
+                            # Fallback to default high-quality URLs
+                            default_images = []
+                            for img_num in range(1, 6):
+                                default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
+                            vehicle["images"] = default_images
+                            print(f"      ⚠️  Using default image URLs")
+                    except Exception as e:
+                        print(f"      ⚠️  Error fetching images: {e}")
+                        # Fallback to default high-quality URLs
+                        default_images = []
+                        for img_num in range(1, 6):
+                            default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
+                        vehicle["images"] = default_images
+            
             return filtered_vehicles
             
         except Exception as e:

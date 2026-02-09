@@ -708,8 +708,59 @@ class CopartScraper:
             
             images = []
             
-            # Method 1: Look for high-quality image attributes
-            img_tags = soup.find_all('img')
+            # Method 1: Use specific CSS classes for Copart image elements
+            # Look for images with classes: zoomImgElement p-image-item-box img-responsive ng-star-inserted
+            print(f"      🔍 Searching for images using CSS classes: zoomImgElement, p-image-item-box, img-responsive, ng-star-inserted")
+            
+            css_selectors = [
+                'img.zoomImgElement',
+                'img.p-image-item-box',
+                'img.img-responsive',
+                '.zoomImgElement img',
+                '.p-image-item-box img',
+                '.img-responsive img',
+                'img.ng-star-inserted'
+            ]
+            
+            for selector in css_selectors:
+                try:
+                    # Try using Playwright's CSS selector
+                    img_elements = self.page.query_selector_all(selector)
+                    print(f"      Found {len(img_elements)} elements with selector: {selector}")
+                    for img_elem in img_elements:
+                        img_src = img_elem.get_attribute('src') or img_elem.get_attribute('data-src') or img_elem.get_attribute('data-full') or img_elem.get_attribute('data-original')
+                        if img_src:
+                            if img_src.startswith('//'):
+                                img_src = 'https:' + img_src
+                            elif img_src.startswith('/'):
+                                img_src = 'https://www.copart.com' + img_src
+                            
+                            # CRITICAL: For Copart CDN images, reconstruct to maximum quality format
+                            if 'cs.copart.com' in img_src:
+                                copart_match = re.search(r'cs\.copart\.com/v1/AUTH_svc\.pdoc/(\d+)/(\d+)/(?:thumb|small|medium|large|full)/(\d+)_(\d+)\.jpg', img_src, re.IGNORECASE)
+                                if copart_match:
+                                    account, lot_num, lot_num2, img_num = copart_match.groups()
+                                    img_src = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_num}/full/{lot_num}_{img_num}.jpg"
+                                else:
+                                    img_src = re.sub(r'/(thumb|small|medium|large)/', '/full/', img_src, flags=re.IGNORECASE)
+                                    img_src = re.sub(r'/v1/AUTH_svc\.pdoc/\d+/(\d+)/', r'/v1/AUTH_svc.pdoc/00000/\1/', img_src)
+                            else:
+                                img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                            
+                            # Remove query parameters
+                            if '?' in img_src:
+                                img_src = img_src.split('?')[0]
+                            
+                            if img_src.startswith('http') and img_src not in images:
+                                images.append(img_src)
+                                print(f"         ✅ Found image: {img_src[:80]}...")
+                except Exception as e:
+                    pass
+            
+            # Method 1b: Also use BeautifulSoup to find images with these classes
+            img_tags = soup.find_all('img', class_=lambda x: x and ('zoomImgElement' in str(x) or 'p-image-item-box' in str(x) or 'img-responsive' in str(x) or 'ng-star-inserted' in str(x)))
+            print(f"      Found {len(img_tags)} img tags with CSS classes using BeautifulSoup")
+            for img in img_tags:
             for img in img_tags:
                 # Prioritize high-quality attributes
                 img_src = img.get('data-full') or img.get('data-original') or img.get('data-src') or img.get('src') or img.get('data-lazy-src')

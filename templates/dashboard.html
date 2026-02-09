@@ -744,7 +744,13 @@
                             
                             // Add image with MAXIMUM quality
                             // Validate URL before adding - ensure it's a proper image URL
-                            if (highQualityImg && highQualityImg.startsWith('http') && (highQualityImg.includes('.jpg') || highQualityImg.includes('.jpeg') || highQualityImg.includes('.png') || highQualityImg.includes('cs.copart.com'))) {
+                            const invalidPatterns = ['railway.app', 'web-production', '/lot/', 'copart.com/lot', 'localhost'];
+                            const isValidImageUrl = highQualityImg && 
+                                highQualityImg.startsWith('http') && 
+                                (highQualityImg.includes('.jpg') || highQualityImg.includes('.jpeg') || highQualityImg.includes('.png') || highQualityImg.includes('cs.copart.com')) &&
+                                !invalidPatterns.some(pattern => highQualityImg.toLowerCase().includes(pattern));
+                            
+                            if (isValidImageUrl) {
                                 html += `<img src="${highQualityImg}" alt="Vehicle ${imgIndex + 1}" class="vehicle-card-image" loading="lazy" onerror="this.style.display=\'none\'; this.nextElementSibling && (this.nextElementSibling.style.display=\'block\');">`;
                                 html += `<div class="image-error-placeholder" style="display:none; width:100%; height:250px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:14px;">Image unavailable</div>`;
                             }

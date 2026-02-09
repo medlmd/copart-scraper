@@ -762,7 +762,6 @@ class CopartScraper:
             img_tags = soup.find_all('img', class_=lambda x: x and ('zoomImgElement' in str(x) or 'p-image-item-box' in str(x) or 'img-responsive' in str(x) or 'ng-star-inserted' in str(x)))
             print(f"      Found {len(img_tags)} img tags with CSS classes using BeautifulSoup")
             for img in img_tags:
-            for img in img_tags:
                 # Prioritize high-quality attributes
                 img_src = img.get('data-full') or img.get('data-original') or img.get('data-src') or img.get('src') or img.get('data-lazy-src')
                 if img_src and ('vehicle' in img_src.lower() or 'lot' in img_src.lower() or 'copart' in img_src.lower() or 'cs.copart.com' in img_src.lower()):

@@ -6,7 +6,9 @@ services:
     startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT --timeout 600 --preload app:app
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: "3.11.0"
+      - key: RUNTIME_VERSION
+        value: "3.11"
       - key: BROWSERLESS_URL
         value: wss://chrome.browserless.io
       # BROWSERLESS_TOKEN should be set in Render dashboard (not in YAML for security)

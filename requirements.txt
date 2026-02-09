@@ -1,6 +1,7 @@
 flask==3.0.0
 requests==2.31.0
 beautifulsoup4==4.12.2
-playwright==1.40.0
+# playwright==1.40.0  # Only needed if not using Browserless
 python-dotenv==1.0.0
+# greenlet will be installed separately in build.sh to avoid compilation issues
 greenlet>=2.0.0,<4.0.0

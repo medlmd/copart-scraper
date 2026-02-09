@@ -810,7 +810,15 @@ class CopartScraper:
                 # Ensure Copart images use /full/ path
                 if 'cs.copart.com' in clean_url:
                     clean_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', clean_url)
-                final_images.append(clean_url)
+                
+                # Validate URL - ensure it's a valid image URL
+                if clean_url.startswith('http') and ('copart' in clean_url.lower() or '.jpg' in clean_url.lower() or '.jpeg' in clean_url.lower() or '.png' in clean_url.lower()):
+                    # Ensure it's not a page URL, error URL, or Railway deployment URL
+                    invalid_patterns = ['railway.app', 'web-production', '/lot/', 'copart.com/lot', 'localhost', '127.0.0.1']
+                    if not any(pattern in clean_url.lower() for pattern in invalid_patterns):
+                        # Ensure it ends with an image extension or contains cs.copart.com
+                        if '.jpg' in clean_url.lower() or '.jpeg' in clean_url.lower() or '.png' in clean_url.lower() or 'cs.copart.com' in clean_url.lower():
+                            final_images.append(clean_url)
             
             # If we found images, return them (all at maximum quality)
             if final_images:

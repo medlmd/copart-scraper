@@ -662,6 +662,22 @@ class CopartScraper:
             
             print(f"\n✅ Image fetching complete: {len(vehicles_with_images)} vehicles processed")
             print(f"   - Vehicles with images: {sum(1 for v in vehicles_with_images if v.get('images') and len(v.get('images', [])) > 0)}")
+            
+            # Print summary of all image URLs for each car
+            print(f"\n📸 SUMMARY - All image URLs for each car:")
+            print("=" * 80)
+            for i, vehicle in enumerate(vehicles_with_images, 1):
+                lot_number = vehicle.get("lot_number", "N/A")
+                images = vehicle.get("images", [])
+                print(f"\n🚗 Car #{i} - Lot #{lot_number} ({vehicle.get('year', 'N/A')} {vehicle.get('make', '')} {vehicle.get('model', '')})")
+                print(f"   Total images: {len(images)}")
+                if images:
+                    for idx, img_url in enumerate(images, 1):
+                        print(f"   {idx}. {img_url}")
+                else:
+                    print("   ⚠️  No images found")
+            print("=" * 80)
+            
             return vehicles_with_images
             
         except Exception as e:

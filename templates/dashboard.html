@@ -213,118 +213,198 @@
             color: #666;
         }
 
-        /* Mobile Responsive Styles */
+        /* Mobile App-like Styles */
+        .vehicle-card {
+            display: none; /* Hidden on desktop, shown on mobile */
+        }
+
         @media (max-width: 768px) {
             body {
-                padding: 10px;
+                padding: 0;
+                background: #f5f5f5;
             }
 
             .container {
                 max-width: 100%;
+                padding: 0;
             }
 
             .header {
-                padding: 20px 15px;
-                margin-bottom: 15px;
+                padding: 15px 20px;
+                margin: 0;
+                border-radius: 0;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+                position: sticky;
+                top: 0;
+                z-index: 100;
             }
 
             .header h1 {
-                font-size: 1.8em;
-                margin-bottom: 8px;
+                font-size: 1.4em;
+                margin-bottom: 5px;
             }
 
             .header p {
-                font-size: 0.9em;
-                line-height: 1.4;
+                font-size: 0.8em;
+                line-height: 1.3;
             }
 
             .header .filter-info {
-                font-size: 0.85em;
-                margin-top: 8px;
+                font-size: 0.75em;
+                margin-top: 5px;
             }
 
             .dashboard {
-                padding: 15px;
-                border-radius: 8px;
+                padding: 10px;
+                border-radius: 0;
+                box-shadow: none;
+                background: #f5f5f5;
             }
 
             .controls {
                 flex-direction: column;
-                gap: 15px;
+                gap: 12px;
                 margin-bottom: 15px;
             }
 
             .stats {
                 width: 100%;
                 justify-content: space-between;
+                gap: 10px;
             }
 
             .stat-card {
                 flex: 1;
                 min-width: 0;
-                padding: 12px 15px;
+                padding: 12px;
+                border-radius: 12px;
             }
 
             .stat-label {
-                font-size: 0.8em;
+                font-size: 0.75em;
             }
 
             .stat-value {
-                font-size: 1.3em;
+                font-size: 1.2em;
             }
 
             .refresh-btn {
                 width: 100%;
-                padding: 14px 20px;
+                padding: 16px 20px;
                 font-size: 1em;
-                min-height: 48px; /* Touch-friendly */
+                min-height: 52px;
+                border-radius: 12px;
+                font-weight: 600;
             }
 
+            /* Hide table on mobile */
             .table-container {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                margin: 0 -15px;
-                padding: 0 15px;
+                display: none;
             }
 
-            table {
-                font-size: 0.85em;
-                min-width: 600px; /* Force horizontal scroll */
+            /* Show card layout on mobile */
+            .vehicle-card {
+                display: block;
+                background: white;
+                border-radius: 16px;
+                padding: 16px;
+                margin-bottom: 12px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                transition: transform 0.2s, box-shadow 0.2s;
             }
 
-            th {
-                padding: 10px 8px;
-                font-size: 0.85em;
-                white-space: nowrap;
+            .vehicle-card:active {
+                transform: scale(0.98);
+                box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
             }
 
-            td {
-                padding: 10px 8px;
+            .vehicle-card-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                margin-bottom: 12px;
+                padding-bottom: 12px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+
+            .vehicle-card-title {
+                font-size: 1.1em;
+                font-weight: 600;
+                color: #333;
+                margin-bottom: 4px;
+            }
+
+            .vehicle-card-lot {
                 font-size: 0.85em;
+                color: #667eea;
+                font-weight: 500;
+            }
+
+            .vehicle-card-badges {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin-top: 8px;
+            }
+
+            .vehicle-card-info {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+                margin-top: 12px;
+            }
+
+            .vehicle-card-info-item {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .vehicle-card-info-label {
+                font-size: 0.75em;
+                color: #888;
+                margin-bottom: 4px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .vehicle-card-info-value {
+                font-size: 0.95em;
+                color: #333;
+                font-weight: 500;
+            }
+
+            .vehicle-card-link {
+                display: block;
+                margin-top: 12px;
+                padding: 12px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                text-align: center;
+                border-radius: 10px;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 0.9em;
             }
 
             .badge {
-                font-size: 0.75em;
+                font-size: 0.7em;
                 padding: 4px 10px;
-            }
-
-            .link {
-                font-size: 0.9em;
-                word-break: break-all;
+                border-radius: 12px;
             }
 
             .error {
                 padding: 15px;
                 font-size: 0.9em;
+                border-radius: 12px;
             }
 
             .empty-state {
-                padding: 40px 15px;
+                padding: 60px 20px;
                 font-size: 0.95em;
             }
 
             .loading {
-                padding: 30px 15px;
+                padding: 40px 20px;
                 font-size: 1em;
             }
         }
@@ -332,44 +412,49 @@
         /* Extra small phones */
         @media (max-width: 480px) {
             body {
-                padding: 8px;
+                padding: 0;
             }
 
             .header {
-                padding: 15px 12px;
+                padding: 12px 15px;
             }
 
             .header h1 {
-                font-size: 1.5em;
+                font-size: 1.3em;
             }
 
             .header p {
-                font-size: 0.85em;
+                font-size: 0.75em;
             }
 
             .header .filter-info {
-                font-size: 0.8em;
+                font-size: 0.7em;
             }
 
             .dashboard {
-                padding: 12px;
+                padding: 8px;
             }
 
             .stat-card {
-                padding: 10px 12px;
+                padding: 10px;
             }
 
             .stat-value {
-                font-size: 1.2em;
+                font-size: 1.1em;
             }
 
-            table {
-                font-size: 0.8em;
-                min-width: 550px;
+            .vehicle-card {
+                padding: 14px;
+                margin-bottom: 10px;
             }
 
-            th, td {
-                padding: 8px 6px;
+            .vehicle-card-title {
+                font-size: 1em;
+            }
+
+            .vehicle-card-info {
+                grid-template-columns: 1fr;
+                gap: 10px;
             }
         }
     </style>
@@ -511,34 +596,79 @@
                 return;
             }
 
-            let html = '<div class="table-container"><table><thead><tr>';
-            html += '<th>Lot #</th>';
-            html += '<th>Year</th>';
-            html += '<th>Make/Model</th>';
-            html += '<th>Damage</th>';
-            html += '<th>Location</th>';
-            html += '<th>Odometer</th>';
-            html += '<th>Current Bid</th>';
-            html += '<th>Auction Countdown</th>';
-            html += '<th>Link</th>';
-            html += '</tr></thead><tbody>';
+            // Check if mobile (screen width <= 768px)
+            const isMobile = window.innerWidth <= 768;
 
-            vehicles.forEach(vehicle => {
-                html += '<tr>';
-                html += `<td>${vehicle.lot_number || 'N/A'}</td>`;
-                html += `<td>${vehicle.year || 'N/A'}</td>`;
-                html += `<td>${vehicle.make || ''} ${vehicle.model || ''}</td>`;
-                html += `<td><span class="badge badge-salvage">${vehicle.damage || 'N/A'}</span></td>`;
-                html += `<td><span class="badge badge-location">${vehicle.location || 'N/A'}</span></td>`;
-                html += `<td>${vehicle.odometer ? vehicle.odometer + ' mi' : 'N/A'}</td>`;
-                html += `<td>${vehicle.current_bid || 'N/A'}</td>`;
-                html += `<td><span class="badge badge-countdown">${vehicle.auction_countdown || 'N/A'}</span></td>`;
-                html += `<td><a href="${vehicle.url || '#'}" target="_blank" class="link">View</a></td>`;
-                html += '</tr>';
-            });
+            if (isMobile) {
+                // Mobile: Card-based layout
+                let html = '';
+                vehicles.forEach(vehicle => {
+                    html += '<div class="vehicle-card">';
+                    html += '<div class="vehicle-card-header">';
+                    html += `<div><div class="vehicle-card-title">${vehicle.year || 'N/A'} ${vehicle.make || ''} ${vehicle.model || ''}</div>`;
+                    html += `<div class="vehicle-card-lot">Lot #${vehicle.lot_number || 'N/A'}</div></div>`;
+                    html += '</div>';
+                    
+                    html += '<div class="vehicle-card-badges">';
+                    if (vehicle.damage && vehicle.damage !== 'N/A') {
+                        html += `<span class="badge badge-salvage">${vehicle.damage}</span>`;
+                    }
+                    if (vehicle.location && vehicle.location !== 'N/A') {
+                        html += `<span class="badge badge-location">${vehicle.location}</span>`;
+                    }
+                    if (vehicle.auction_countdown && vehicle.auction_countdown !== 'N/A') {
+                        html += `<span class="badge badge-countdown">${vehicle.auction_countdown}</span>`;
+                    }
+                    html += '</div>';
+                    
+                    html += '<div class="vehicle-card-info">';
+                    html += '<div class="vehicle-card-info-item">';
+                    html += '<div class="vehicle-card-info-label">Odometer</div>';
+                    html += `<div class="vehicle-card-info-value">${vehicle.odometer ? vehicle.odometer + ' mi' : 'N/A'}</div>`;
+                    html += '</div>';
+                    html += '<div class="vehicle-card-info-item">';
+                    html += '<div class="vehicle-card-info-label">Current Bid</div>';
+                    html += `<div class="vehicle-card-info-value">${vehicle.current_bid || 'N/A'}</div>`;
+                    html += '</div>';
+                    html += '</div>';
+                    
+                    if (vehicle.url) {
+                        html += `<a href="${vehicle.url}" target="_blank" class="vehicle-card-link">View on Copart →</a>`;
+                    }
+                    html += '</div>';
+                });
+                content.innerHTML = html;
+            } else {
+                // Desktop: Table layout
+                let html = '<div class="table-container"><table><thead><tr>';
+                html += '<th>Lot #</th>';
+                html += '<th>Year</th>';
+                html += '<th>Make/Model</th>';
+                html += '<th>Damage</th>';
+                html += '<th>Location</th>';
+                html += '<th>Odometer</th>';
+                html += '<th>Current Bid</th>';
+                html += '<th>Auction Countdown</th>';
+                html += '<th>Link</th>';
+                html += '</tr></thead><tbody>';
 
-            html += '</tbody></table></div>';
-            content.innerHTML = html;
+                vehicles.forEach(vehicle => {
+                    html += '<tr>';
+                    html += `<td>${vehicle.lot_number || 'N/A'}</td>`;
+                    html += `<td>${vehicle.year || 'N/A'}</td>`;
+                    html += `<td>${vehicle.make || ''} ${vehicle.model || ''}</td>`;
+                    html += `<td><span class="badge badge-salvage">${vehicle.damage || 'N/A'}</span></td>`;
+                    html += `<td><span class="badge badge-location">${vehicle.location || 'N/A'}</span></td>`;
+                    html += `<td>${vehicle.odometer ? vehicle.odometer + ' mi' : 'N/A'}</td>`;
+                    html += `<td>${vehicle.current_bid || 'N/A'}</td>`;
+                    html += `<td><span class="badge badge-countdown">${vehicle.auction_countdown || 'N/A'}</span></td>`;
+                    html += `<td><a href="${vehicle.url || '#'}" target="_blank" class="link">View</a></td>`;
+                    html += '</tr>';
+                });
+
+                html += '</tbody></table></div>';
+                content.innerHTML = html;
+            }
         }
 
         // Load data on page load

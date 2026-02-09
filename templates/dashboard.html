@@ -308,9 +308,9 @@
                     const errorMsg = data.error || 'Failed to fetch data';
                     let errorHTML = `<div class="error"><strong>⚠️ Scraping Error:</strong> ${errorMsg}`;
                     
-                    // Check if ChromeDriver error
-                    if (errorMsg.includes('Chrome') || errorMsg.includes('ChromeDriver')) {
-                        errorHTML += `<br><br><strong>Note:</strong> The dashboard works without ChromeDriver, but scraping requires it.`;
+                    // Check if Playwright/Browserless error
+                    if (errorMsg.includes('Playwright') || errorMsg.includes('Browserless') || errorMsg.includes('scraper')) {
+                        errorHTML += `<br><br><strong>Note:</strong> The dashboard works without scraping, but to refresh data, Playwright and Browserless must be configured.`;
                         errorHTML += `<br>If you have cached data, it will still be displayed below.</div>`;
                     } else {
                         errorHTML += `</div>`;

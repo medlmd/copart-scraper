@@ -36,9 +36,17 @@ def refresh_data():
     try:
         scrape_func = get_scraper()
         if not scrape_func:
+            # Check if it's a Playwright import issue
+            try:
+                import playwright
+            except ImportError:
+                error_msg = 'Playwright is not installed. This is required to connect to Browserless.'
+            else:
+                error_msg = 'Scraper module could not be imported. Check server logs for details.'
+            
             return jsonify({
                 'success': False,
-                'error': 'Scraper not available. Chrome/ChromeDriver may not be installed on this platform.'
+                'error': f'Scraper not available. {error_msg}'
             }), 500
         
         print("=" * 80)
@@ -52,16 +60,17 @@ def refresh_data():
         
         if len(vehicles) == 0:
             print("⚠️  WARNING: No vehicles found. This could indicate:")
-            print("   1. Chrome/ChromeDriver not available on this platform")
+            print("   1. Browserless connection failed or not configured")
             print("   2. Network/connection issues")
             print("   3. Copart website blocking requests")
             print("   4. Search criteria too strict")
+            print("   5. Playwright/Browserless not properly initialized")
             # Don't clear cached data if scraping fails - keep old data
             if len(cached_data) > 0:
                 print(f"ℹ️  Keeping {len(cached_data)} cached vehicles from previous scrape")
                 return jsonify({
                     'success': False,
-                    'error': 'Scraping returned 0 vehicles. This usually means Chrome/ChromeDriver is not available. Showing cached data instead.',
+                    'error': 'Scraping returned 0 vehicles. Check Browserless connection and server logs. Showing cached data instead.',
                     'data': cached_data,
                     'count': len(cached_data),
                     'cached': True

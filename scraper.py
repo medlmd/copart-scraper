@@ -572,7 +572,15 @@ class CopartScraper:
             vehicles_with_images = []
             for i, vehicle in enumerate(filtered_vehicles, 1):
                 lot_number = vehicle.get("lot_number", "N/A")
+                # Clean lot number - remove any prefixes or spaces
                 if lot_number != "N/A":
+                    lot_number = str(lot_number).strip()
+                    # Remove "1-" prefix if present
+                    if lot_number.startswith('1-'):
+                        lot_number = lot_number[2:]
+                    vehicle["lot_number"] = lot_number
+                
+                if lot_number != "N/A" and lot_number:
                     try:
                         print(f"  [{i}/{len(filtered_vehicles)}] Fetching images for lot {lot_number}...")
                         lot_images = self._fetch_images_from_lot_page(lot_number)

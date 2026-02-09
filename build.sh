@@ -13,16 +13,15 @@ echo "🔧 Installing greenlet (Playwright dependency)..."
 PYTHON_VERSION=$(python3 --version 2>&1 | grep -oP '\d+\.\d+' | head -1 || echo "unknown")
 echo "   Detected Python version: $PYTHON_VERSION"
 
-# For Python 3.13, try to install from a compatible source or skip if using Browserless
+# For Python 3.13, try newer greenlet version or skip
 if [[ "$PYTHON_VERSION" == "3.13"* ]]; then
-    echo "⚠️  Python 3.13 detected - greenlet may not have wheels available"
-    echo "   Attempting to install greenlet with multiple strategies..."
-    
-    # Try installing from PyPI with platform-specific wheel
-    pip install --no-cache-dir --only-binary :all: --platform manylinux2014_x86_64 --implementation cp --python-version 3.13 --only-binary :all: greenlet || \
+    echo "⚠️  Python 3.13 detected - trying greenlet 3.1.0+ (supports Python 3.13)"
+    # Try newer greenlet version that supports Python 3.13
+    pip install --no-cache-dir --prefer-binary "greenlet>=3.1.0" || \
     pip install --no-cache-dir --only-binary :all: greenlet || \
     pip install --no-cache-dir --prefer-binary greenlet || \
-    echo "⚠️  Greenlet installation failed - will try to continue (Browserless may work without it)"
+    echo "⚠️  Greenlet installation failed - installing Playwright without it (Browserless connection may still work)"
+    SKIP_GREENLET=1
 else
     # For Python 3.11 and earlier, normal installation
     pip install --no-cache-dir --only-binary :all: greenlet || \
@@ -43,11 +42,15 @@ if [ -n "$BROWSERLESS_URL" ]; then
     
     # Install Playwright (needed to connect to Browserless via CDP)
     # But skip browser installation (saves ~200MB)
-    # Try to install without greenlet dependency first, then with it
-    pip install --no-cache-dir --prefer-binary --no-deps playwright==1.40.0 || \
-    pip install --no-cache-dir --prefer-binary playwright==1.40.0 || \
-    pip install --no-cache-dir playwright==1.40.0 || \
-    echo "⚠️  Playwright installation had issues, but Browserless connection may still work"
+    if [ "$SKIP_GREENLET" = "1" ]; then
+        echo "   Installing Playwright without dependencies (greenlet failed)..."
+        pip install --no-cache-dir --no-deps playwright==1.40.0 || \
+        echo "⚠️  Playwright installation failed"
+    else
+        pip install --no-cache-dir --prefer-binary playwright==1.40.0 || \
+        pip install --no-cache-dir playwright==1.40.0 || \
+        echo "⚠️  Playwright installation had issues"
+    fi
     echo "✅ Playwright installed (for Browserless CDP connection)"
 else
     # Try to install with binary wheels first to avoid compilation

@@ -600,13 +600,19 @@ class CopartScraper:
                                 # Step 2: Remove ALL size/quality/scale/resize parameters
                                 clean_url = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+', '', clean_url)
                                 
-                                # Step 3: Ensure Copart images use /full/ path
+                                # Step 3: CRITICAL - For Copart CDN images, reconstruct to maximum quality format
                                 if 'cs.copart.com' in clean_url:
-                                    # Replace any size path with /full/
-                                    clean_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', clean_url, flags=re.IGNORECASE)
-                                    # Ensure /full/ is in the path
-                                    if '/full/' not in clean_url and re.search(r'/\d+/\d+_(\d+)\.jpg', clean_url):
-                                        clean_url = re.sub(r'/(\d+)/(\d+)_(\d+)\.jpg', r'/00000/\2/full/\2_\3.jpg', clean_url)
+                                    # Extract lot number and image number from URL
+                                    copart_match = re.search(r'cs\.copart\.com/v1/AUTH_svc\.pdoc/(\d+)/(\d+)/(?:thumb|small|medium|large|full)/(\d+)_(\d+)\.jpg', clean_url, re.IGNORECASE)
+                                    if copart_match:
+                                        account, lot_num, lot_num2, img_num = copart_match.groups()
+                                        # Reconstruct to maximum quality format: /00000/{lot}/full/{lot}_{num}.jpg
+                                        clean_url = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_num}/full/{lot_num}_{img_num}.jpg"
+                                    else:
+                                        # Fallback: replace any size path with /full/
+                                        clean_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', clean_url, flags=re.IGNORECASE)
+                                        # Try to fix account number to 00000
+                                        clean_url = re.sub(r'/v1/AUTH_svc\.pdoc/\d+/(\d+)/', r'/v1/AUTH_svc.pdoc/00000/\1/', clean_url)
                                 
                                 # Step 4: Remove trailing query parameters that might affect quality
                                 if '?' in clean_url:
@@ -694,22 +700,21 @@ class CopartScraper:
                     if img_src.startswith('http'):
                         images.append(img_src)
             
-            # Method 2: Look for Copart's standard image URLs in page source - get ALL images (1-20)
-            # Pattern: https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot}/full/{lot}_{num}.jpg
-            # Try to find all image numbers (1-20) for maximum coverage
+            # Method 2: Construct maximum quality Copart image URLs directly
+            # Copart uses: https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot}/full/{lot}_{num}.jpg
+            # Try image numbers 1-20 for maximum coverage
             for img_num in range(1, 21):
+                # Use the standard maximum quality URL format
                 img_url = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg"
-                # Check if this URL exists in page source
-                if img_url in page_source or f'{lot_number}_{img_num}' in page_source:
-                    if img_url not in images:
-                        images.append(img_url)
+                if img_url not in images:
+                    images.append(img_url)
             
-            # Also search for any Copart image URLs in the page
-            copart_image_pattern = rf'https://cs\.copart\.com/v1/AUTH_svc\.pdoc/\d+/{lot_number}/(?:full|large)/{lot_number}_\d+\.jpg'
+            # Method 2b: Also search for any Copart image URLs in the page and convert to max quality
+            copart_image_pattern = rf'https://cs\.copart\.com/v1/AUTH_svc\.pdoc/(\d+)/(\d+)/(?:thumb|small|medium|large|full)/(\d+)_(\d+)\.jpg'
             image_matches = re.findall(copart_image_pattern, page_source, re.IGNORECASE)
-            for img_url in image_matches:
-                # Ensure /full/ path
-                img_url = img_url.replace('/large/', '/full/')
+            for account, lot1, lot2, img_num in image_matches:
+                # Convert to maximum quality format
+                img_url = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot2}/full/{lot2}_{img_num}.jpg"
                 if img_url not in images:
                     images.append(img_url)
             
@@ -723,10 +728,28 @@ class CopartScraper:
                         img_src = 'https:' + img_src
                     elif img_src.startswith('/'):
                         img_src = 'https://www.copart.com' + img_src
-                    # Replace all size paths with /full/ for maximum quality
-                    img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                    
+                    # CRITICAL: For Copart CDN images, construct maximum quality URL
+                    if 'cs.copart.com' in img_src:
+                        # Extract lot number and image number from URL
+                        copart_match = re.search(r'cs\.copart\.com/v1/AUTH_svc\.pdoc/(\d+)/(\d+)/(?:thumb|small|medium|large|full)/(\d+)_(\d+)\.jpg', img_src, re.IGNORECASE)
+                        if copart_match:
+                            account, lot_num, lot_num2, img_num = copart_match.groups()
+                            # Use the standard maximum quality URL format
+                            img_src = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_num}/full/{lot_num}_{img_num}.jpg"
+                        else:
+                            # Fallback: replace any size with /full/
+                            img_src = re.sub(r'/(thumb|small|medium|large)/', '/full/', img_src, flags=re.IGNORECASE)
+                    else:
+                        # For non-Copart CDN images, replace size paths
+                        img_src = img_src.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                    
                     # Remove ALL quality/size parameters
                     img_src = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+', '', img_src)
+                    # Remove query string entirely
+                    if '?' in img_src:
+                        img_src = img_src.split('?')[0]
+                    
                     if img_src.startswith('http') and img_src not in images:
                         images.append(img_src)
             
@@ -744,8 +767,23 @@ class CopartScraper:
                                     img_url = 'https:' + img_url
                                 elif img_url.startswith('/'):
                                     img_url = 'https://www.copart.com' + img_url
-                                img_url = img_url.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                                
+                                # CRITICAL: For Copart CDN images, construct maximum quality URL
+                                if 'cs.copart.com' in img_url:
+                                    copart_match = re.search(r'cs\.copart\.com/v1/AUTH_svc\.pdoc/(\d+)/(\d+)/(?:thumb|small|medium|large|full)/(\d+)_(\d+)\.jpg', img_url, re.IGNORECASE)
+                                    if copart_match:
+                                        account, lot_num, lot_num2, img_num = copart_match.groups()
+                                        img_url = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_num}/full/{lot_num}_{img_num}.jpg"
+                                    else:
+                                        img_url = re.sub(r'/(thumb|small|medium|large)/', '/full/', img_url, flags=re.IGNORECASE)
+                                else:
+                                    img_url = img_url.replace('/thumb/', '/full/').replace('/small/', '/full/').replace('/medium/', '/full/').replace('/large/', '/full/')
+                                
                                 img_url = re.sub(r'[?&](width|height|w|h|size|quality|scale|resize)=\d+', '', img_url)
+                                # Remove query string entirely
+                                if '?' in img_url:
+                                    img_url = img_url.split('?')[0]
+                                
                                 if img_url.startswith('http') and img_url not in images:
                                     images.append(img_url)
                 except:

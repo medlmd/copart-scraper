@@ -706,31 +706,43 @@
                         html += '<div class="vehicle-card-image-container">';
                         html += '<div class="vehicle-card-images" id="' + cardId + '-images">';
                         images.forEach((img, imgIndex) => {
-                            // CRITICAL: Ensure MAXIMUM quality for EVERY image - clean ALL image URLs
+                            // CRITICAL: Ensure MAXIMUM quality for EVERY image - reconstruct Copart URLs
                             let highQualityImg = String(img).trim();
                             
-                            // Step 1: Replace ALL size paths with /full/ for maximum quality
-                            highQualityImg = highQualityImg.replace(/\/thumb\//gi, '/full/');
-                            highQualityImg = highQualityImg.replace(/\/small\//gi, '/full/');
-                            highQualityImg = highQualityImg.replace(/\/medium\//gi, '/full/');
-                            highQualityImg = highQualityImg.replace(/\/large\//gi, '/full/');
-                            
-                            // Step 2: Remove ALL size/quality/scale/resize parameters
-                            highQualityImg = highQualityImg.replace(/[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+/gi, '');
-                            
-                            // Step 3: Ensure Copart images use /full/ path
+                            // CRITICAL: For Copart CDN images, reconstruct to maximum quality format
                             if (highQualityImg.includes('cs.copart.com')) {
-                                highQualityImg = highQualityImg.replace(/\/(thumb|small|medium|large)\//gi, '/full/');
-                                // Fix common patterns: /00000/{lot}/{size}/ -> /00000/{lot}/full/
-                                highQualityImg = highQualityImg.replace(/\/(\d+)\/(thumb|small|medium|large)\//gi, '/$1/full/');
+                                // Extract lot number and image number from URL
+                                // Pattern: https://cs.copart.com/v1/AUTH_svc.pdoc/{account}/{lot}/{size}/{lot}_{num}.jpg
+                                const copartMatch = highQualityImg.match(/cs\.copart\.com\/v1\/AUTH_svc\.pdoc\/(\d+)\/(\d+)\/(?:thumb|small|medium|large|full)\/(\d+)_(\d+)\.jpg/i);
+                                if (copartMatch) {
+                                    const account = copartMatch[1];
+                                    const lotNum = copartMatch[2];
+                                    const lotNum2 = copartMatch[3];
+                                    const imgNum = copartMatch[4];
+                                    // Reconstruct to maximum quality format: /00000/{lot}/full/{lot}_{num}.jpg
+                                    highQualityImg = `https://cs.copart.com/v1/AUTH_svc.pdoc/00000/${lotNum}/full/${lotNum}_${imgNum}.jpg`;
+                                } else {
+                                    // Fallback: replace size paths and fix account number
+                                    highQualityImg = highQualityImg.replace(/\/(thumb|small|medium|large)\//gi, '/full/');
+                                    highQualityImg = highQualityImg.replace(/\/v1\/AUTH_svc\.pdoc\/\d+\/(\d+)\//, '/v1/AUTH_svc.pdoc/00000/$1/');
+                                }
+                            } else {
+                                // For non-Copart images, replace size paths
+                                highQualityImg = highQualityImg.replace(/\/thumb\//gi, '/full/');
+                                highQualityImg = highQualityImg.replace(/\/small\//gi, '/full/');
+                                highQualityImg = highQualityImg.replace(/\/medium\//gi, '/full/');
+                                highQualityImg = highQualityImg.replace(/\/large\//gi, '/full/');
                             }
                             
-                            // Step 4: Remove trailing query parameters
+                            // Remove ALL size/quality/scale/resize parameters
+                            highQualityImg = highQualityImg.replace(/[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+/gi, '');
+                            
+                            // Remove query string entirely for maximum quality
                             if (highQualityImg.includes('?')) {
                                 highQualityImg = highQualityImg.split('?')[0];
                             }
                             
-                            // Step 5: Add image with MAXIMUM quality
+                            // Add image with MAXIMUM quality
                             html += `<img src="${highQualityImg}" alt="Vehicle ${imgIndex + 1}" class="vehicle-card-image" loading="lazy" onerror="this.src=\'https://via.placeholder.com/800x400?text=No+Image\'">`;
                         });
                         html += '</div>';

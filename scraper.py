@@ -36,9 +36,27 @@ class CopartScraper:
         
         # Check for Chrome/Chromium in cloud environments (Render, Heroku, etc.)
         chrome_bin = os.environ.get('CHROME_BIN', None)
-        if chrome_bin and os.path.isfile(chrome_bin):
-            chrome_options.binary_location = chrome_bin
-            print(f"Using Chrome binary from environment: {chrome_bin}")
+        if chrome_bin:
+            if os.path.isfile(chrome_bin):
+                chrome_options.binary_location = chrome_bin
+                print(f"Using Chrome binary from environment: {chrome_bin}")
+            else:
+                print(f"⚠️  Warning: CHROME_BIN environment variable set to '{chrome_bin}' but file does not exist")
+        
+        # Also try common Chrome/Chromium locations
+        if not chrome_options.binary_location:
+            common_chrome_paths = [
+                '/usr/bin/google-chrome',
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/chromium',
+                '/usr/bin/chromium-browser',
+                '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+            ]
+            for path in common_chrome_paths:
+                if os.path.isfile(path):
+                    chrome_options.binary_location = path
+                    print(f"Found Chrome/Chromium at: {path}")
+                    break
         
         # Check for ChromeDriver path in environment (cloud platforms)
         chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', None)
@@ -75,18 +93,75 @@ class CopartScraper:
             if not driver_path:
                 print("ChromeDriver not found in known paths, using webdriver-manager...")
                 try:
-                    driver_path = ChromeDriverManager().install()
-                    print(f"ChromeDriver installed via webdriver-manager: {driver_path}")
+                    # Check if Chrome is available first
+                    chrome_available = False
+                    if chrome_options.binary_location and os.path.isfile(chrome_options.binary_location):
+                        chrome_available = True
+                    else:
+                        # Try to find Chrome
+                        for path in ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium']:
+                            if os.path.isfile(path):
+                                chrome_available = True
+                                break
+                    
+                    if not chrome_available:
+                        raise Exception("Chrome/Chromium not found. Cannot install ChromeDriver without Chrome.")
+                    
+                    manager = ChromeDriverManager()
+                    driver_path = manager.install()
+                    
+                    # Validate that we got a valid path
+                    if driver_path is None:
+                        raise Exception("ChromeDriverManager.install() returned None")
+                    
+                    if not isinstance(driver_path, str):
+                        raise Exception(f"ChromeDriverManager returned non-string: {type(driver_path)}")
+                    
+                    if not driver_path.strip():
+                        raise Exception("ChromeDriverManager returned empty string")
+                    
+                    if not os.path.isfile(driver_path):
+                        raise Exception(f"ChromeDriverManager returned path that doesn't exist: {driver_path}")
+                    
+                    print(f"✅ ChromeDriver installed via webdriver-manager: {driver_path}")
                 except Exception as e:
-                    print(f"webdriver-manager failed: {e}")
-                    raise Exception(f"Could not install ChromeDriver. Error: {e}")
+                    error_detail = str(e)
+                    print(f"❌ webdriver-manager failed: {error_detail}")
+                    import traceback
+                    traceback.print_exc()
+                    raise Exception(f"Could not install ChromeDriver. Error: {error_detail}. Make sure Chrome/Chromium is installed.")
             
+            # Final validation
             if not driver_path:
                 raise Exception("ChromeDriver path not found and could not be installed")
             
+            if not isinstance(driver_path, str):
+                raise Exception(f"ChromeDriver path is not a string: {type(driver_path)}")
+            
+            driver_path = driver_path.strip()
+            if not driver_path:
+                raise Exception("ChromeDriver path is empty after stripping")
+            
+            if not os.path.isfile(driver_path):
+                raise Exception(f"ChromeDriver path does not exist: {driver_path}")
+            
             # Create service and driver
-            service = Service(driver_path)
-            self.driver = webdriver.Chrome(service=service, options=chrome_options)
+            print(f"Creating ChromeDriver service with path: {driver_path}")
+            try:
+                service = Service(driver_path)
+                print(f"Service created successfully")
+            except Exception as e:
+                raise Exception(f"Failed to create Service with path '{driver_path}': {str(e)}")
+            
+            try:
+                self.driver = webdriver.Chrome(service=service, options=chrome_options)
+                print("✅ ChromeDriver initialized successfully")
+            except Exception as e:
+                error_msg = str(e)
+                if "'NoneType' object has no attribute 'split'" in error_msg:
+                    raise Exception(f"ChromeDriver initialization failed - Chrome version detection issue. This usually means Chrome/Chromium is not properly installed. Original error: {error_msg}")
+                else:
+                    raise Exception(f"Failed to create Chrome driver: {error_msg}")
             print("✅ ChromeDriver initialized successfully")
             
             # Execute script to hide webdriver property

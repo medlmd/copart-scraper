@@ -3,6 +3,4 @@ requests==2.31.0
 beautifulsoup4==4.12.2
 playwright==1.40.0
 python-dotenv==1.0.0
-# Note: greenlet will be installed separately in build.sh to avoid compilation issues
-# Playwright is always needed (even with Browserless) to connect via CDP
-greenlet>=2.0.0,<4.0.0
+greenlet>=3.0,<4

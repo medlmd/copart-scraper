@@ -856,10 +856,16 @@ class CopartScraper:
             return default_images
             
         except Exception as e:
-            # Return default high-quality URLs as fallback
+            print(f"      Error details: {e}")
+            # Return default high-quality URLs as fallback (try 1-20 for better coverage)
             default_images = []
-            for img_num in range(1, 6):
+            for img_num in range(1, 21):
                 default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
+            print(f"      📸 Exception fallback URLs (20 images):")
+            for idx, img_url in enumerate(default_images[:10], 1):  # Show first 10
+                print(f"         {idx}. {img_url}")
+            if len(default_images) > 10:
+                print(f"         ... and {len(default_images) - 10} more images")
             return default_images
     
     def scrape_copart_lot(self, lot_number):

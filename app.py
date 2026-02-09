@@ -19,8 +19,20 @@ def get_scraper():
     try:
         from scraper import scrape_copart_corolla
         return scrape_copart_corolla
+    except ImportError as e:
+        print(f"Warning: Could not import scraper: {e}")
+        print(f"   This usually means Playwright is not installed or there's a dependency issue.")
+        # Check if it's Playwright specifically
+        try:
+            import playwright
+            print(f"   Playwright is installed (version: {playwright.__version__ if hasattr(playwright, '__version__') else 'unknown'})")
+        except ImportError:
+            print(f"   ❌ Playwright is NOT installed. This is required for Browserless connection.")
+        return None
     except Exception as e:
         print(f"Warning: Could not import scraper: {e}")
+        import traceback
+        traceback.print_exc()
         return None
 
 @app.route('/')

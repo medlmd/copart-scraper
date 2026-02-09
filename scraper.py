@@ -616,8 +616,6 @@ class CopartScraper:
             print(f"\n✅ Image fetching complete: {len(vehicles_with_images)} vehicles with images")
             return vehicles_with_images
             
-            return filtered_vehicles
-            
         except Exception as e:
             print(f"Error extracting vehicles: {str(e)}")
             import traceback

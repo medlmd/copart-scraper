@@ -1,17 +1,12 @@
 """
 Copart Toyota Corolla Scraper
 Scrapes vehicle data from bid.cars and Copart with strict filtering
+Uses Playwright for better cloud deployment support
 """
 import time
 import re
 import os
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+from playwright.sync_api import sync_playwright, Browser, Page
 from bs4 import BeautifulSoup
 
 
@@ -19,216 +14,106 @@ class CopartScraper:
     """Main scraper class for Copart vehicles"""
     
     def __init__(self):
-        self.driver = None
-        # Don't initialize driver on creation - do it lazily when needed
+        self.browser = None
+        self.page = None
+        self.playwright = None
+        # Don't initialize browser on creation - do it lazily when needed
     
-    def setup_driver(self):
-        """Setup Chrome driver with Cloudflare bypass options"""
-        chrome_options = Options()
-        chrome_options.add_argument('--headless')
-        chrome_options.add_argument('--no-sandbox')
-        chrome_options.add_argument('--disable-dev-shm-usage')
-        chrome_options.add_argument('--disable-gpu')
-        chrome_options.add_argument('--disable-blink-features=AutomationControlled')
-        chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
-        chrome_options.add_experimental_option('useAutomationExtension', False)
-        chrome_options.add_argument('user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-        
-        # Check for Chrome/Chromium in cloud environments (Render, Heroku, etc.)
-        chrome_bin = os.environ.get('CHROME_BIN', None)
-        if chrome_bin:
-            if os.path.isfile(chrome_bin):
-                chrome_options.binary_location = chrome_bin
-                print(f"Using Chrome binary from environment: {chrome_bin}")
-            else:
-                print(f"⚠️  Warning: CHROME_BIN environment variable set to '{chrome_bin}' but file does not exist")
-        
-        # Also try common Chrome/Chromium locations
-        if not chrome_options.binary_location:
-            common_chrome_paths = [
-                '/usr/bin/google-chrome',
-                '/usr/bin/google-chrome-stable',
-                '/usr/bin/chromium',
-                '/usr/bin/chromium-browser',
-                '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-            ]
-            for path in common_chrome_paths:
-                if os.path.isfile(path):
-                    chrome_options.binary_location = path
-                    print(f"Found Chrome/Chromium at: {path}")
-                    break
-        
-        # Check for ChromeDriver path in environment (cloud platforms)
-        chromedriver_path = os.environ.get('CHROMEDRIVER_PATH', None)
-        
+    def setup_browser(self):
+        """Setup Playwright browser with Cloudflare bypass options"""
         try:
-            driver_path = None
+            print("Initializing Playwright...")
+            self.playwright = sync_playwright().start()
             
-            # Priority 1: Use environment variable path (cloud platforms)
-            if chromedriver_path and os.path.isfile(chromedriver_path):
-                driver_path = chromedriver_path
-                print(f"Using ChromeDriver from environment: {chromedriver_path}")
+            # Launch browser with stealth options
+            browser_args = [
+                '--no-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-blink-features=AutomationControlled',
+                '--disable-features=IsolateOrigins,site-per-process',
+            ]
             
-            # Priority 2: Try known local ChromeDriver locations
-            if not driver_path:
-                known_paths = [
-                    "/Users/lmd/.wdm/drivers/chromedriver/mac64/144.0.7559.96/chromedriver-mac-arm64/chromedriver",
-                    "/usr/bin/chromedriver",
-                    "/usr/local/bin/chromedriver",
-                ]
-                
-                for path in known_paths:
-                    if os.path.isfile(path):
-                        try:
-                            with open(path, 'rb') as f:
-                                header = f.read(4)
-                                if header and len(header) == 4:
-                                    driver_path = path
-                                    print(f"Using ChromeDriver from known path: {path}")
-                                    break
-                        except:
-                            continue
+            self.browser = self.playwright.chromium.launch(
+                headless=True,
+                args=browser_args
+            )
             
-            # Priority 3: Use webdriver-manager (fallback)
-            if not driver_path:
-                print("ChromeDriver not found in known paths, using webdriver-manager...")
-                try:
-                    # Check if Chrome is available first
-                    chrome_available = False
-                    if chrome_options.binary_location and os.path.isfile(chrome_options.binary_location):
-                        chrome_available = True
-                    else:
-                        # Try to find Chrome
-                        for path in ['/usr/bin/google-chrome', '/usr/bin/chromium-browser', '/usr/bin/chromium']:
-                            if os.path.isfile(path):
-                                chrome_available = True
-                                break
-                    
-                    if not chrome_available:
-                        raise Exception("Chrome/Chromium not found. Cannot install ChromeDriver without Chrome.")
-                    
-                    manager = ChromeDriverManager()
-                    driver_path = manager.install()
-                    
-                    # Validate that we got a valid path
-                    if driver_path is None:
-                        raise Exception("ChromeDriverManager.install() returned None")
-                    
-                    if not isinstance(driver_path, str):
-                        raise Exception(f"ChromeDriverManager returned non-string: {type(driver_path)}")
-                    
-                    if not driver_path.strip():
-                        raise Exception("ChromeDriverManager returned empty string")
-                    
-                    if not os.path.isfile(driver_path):
-                        raise Exception(f"ChromeDriverManager returned path that doesn't exist: {driver_path}")
-                    
-                    print(f"✅ ChromeDriver installed via webdriver-manager: {driver_path}")
-                except Exception as e:
-                    error_detail = str(e)
-                    print(f"❌ webdriver-manager failed: {error_detail}")
-                    import traceback
-                    traceback.print_exc()
-                    raise Exception(f"Could not install ChromeDriver. Error: {error_detail}. Make sure Chrome/Chromium is installed.")
+            # Create context with stealth settings
+            context = self.browser.new_context(
+                user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                viewport={'width': 1920, 'height': 1080},
+                java_script_enabled=True,
+            )
             
-            # Final validation
-            if not driver_path:
-                raise Exception("ChromeDriver path not found and could not be installed")
+            # Add script to hide webdriver property
+            context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {
+                    get: () => undefined
+                });
+            """)
             
-            if not isinstance(driver_path, str):
-                raise Exception(f"ChromeDriver path is not a string: {type(driver_path)}")
-            
-            driver_path = driver_path.strip()
-            if not driver_path:
-                raise Exception("ChromeDriver path is empty after stripping")
-            
-            if not os.path.isfile(driver_path):
-                raise Exception(f"ChromeDriver path does not exist: {driver_path}")
-            
-            # Create service and driver
-            print(f"Creating ChromeDriver service with path: {driver_path}")
-            try:
-                service = Service(driver_path)
-                print(f"Service created successfully")
-            except Exception as e:
-                raise Exception(f"Failed to create Service with path '{driver_path}': {str(e)}")
-            
-            try:
-                self.driver = webdriver.Chrome(service=service, options=chrome_options)
-                print("✅ ChromeDriver initialized successfully")
-            except Exception as e:
-                error_msg = str(e)
-                if "'NoneType' object has no attribute 'split'" in error_msg:
-                    raise Exception(f"ChromeDriver initialization failed - Chrome version detection issue. This usually means Chrome/Chromium is not properly installed. Original error: {error_msg}")
-                else:
-                    raise Exception(f"Failed to create Chrome driver: {error_msg}")
-            print("✅ ChromeDriver initialized successfully")
-            
-            # Execute script to hide webdriver property
-            self.driver.execute_cdp_cmd('Page.addScriptToEvaluateOnNewDocument', {
-                'source': '''
-                    Object.defineProperty(navigator, 'webdriver', {
-                        get: () => undefined
-                    })
-                '''
-            })
+            # Create page
+            self.page = context.new_page()
+            print("✅ Playwright browser initialized successfully")
             
         except Exception as e:
-            error_msg = f"Error setting up ChromeDriver: {str(e)}"
+            error_msg = f"Error setting up Playwright browser: {str(e)}"
             print(f"❌ {error_msg}")
             import traceback
             traceback.print_exc()
-            raise Exception(f"{error_msg}. Make sure Chrome/Chromium and ChromeDriver are installed.")
+            raise Exception(f"{error_msg}. Make sure Playwright browsers are installed. Run: playwright install chromium")
     
     def close(self):
-        """Close the browser driver"""
-        if self.driver:
-            try:
-                self.driver.quit()
-            except:
-                pass
+        """Close the browser"""
+        try:
+            if self.page:
+                self.page.close()
+            if self.browser:
+                self.browser.close()
+            if self.playwright:
+                self.playwright.stop()
+        except:
+            pass
     
     def extract_vehicles_from_search_url(self, search_url, limit=20, description=""):
         """Extract all vehicle data directly from search results page (MUCH FASTER)"""
         vehicles = []
         
-        # Initialize driver if not already done
-        if not self.driver:
+        # Initialize browser if not already done
+        if not self.page:
             try:
-                print("Initializing ChromeDriver...")
-                self.setup_driver()
-                if not self.driver:
-                    print("❌ ChromeDriver initialization failed - driver is None")
+                print("Initializing Playwright browser...")
+                self.setup_browser()
+                if not self.page:
+                    print("❌ Browser initialization failed - page is None")
                     return vehicles
             except Exception as e:
-                print(f"❌ Error initializing ChromeDriver: {e}")
+                print(f"❌ Error initializing browser: {e}")
                 import traceback
                 traceback.print_exc()
                 return vehicles
         
-        if not self.driver:
-            print("❌ No ChromeDriver available - cannot scrape")
+        if not self.page:
+            print("❌ No browser available - cannot scrape")
             return vehicles
         
         try:
             print(f"Navigating to Copart search results ({description})...")
-            self.driver.get(search_url)
+            self.page.goto(search_url, wait_until='networkidle', timeout=30000)
             
             # Wait for page to load
             print("Waiting for page to load...")
-            time.sleep(5)
+            time.sleep(3)
             
-            # Wait for content
+            # Wait for content to be ready
             try:
-                WebDriverWait(self.driver, 15).until(
-                    lambda driver: driver.execute_script("return document.readyState") == "complete"
-                )
+                self.page.wait_for_load_state('domcontentloaded', timeout=15000)
             except:
                 pass
             
             time.sleep(2)
             
-            page_source = self.driver.page_source
+            page_source = self.page.content()
             soup = BeautifulSoup(page_source, 'html.parser')
             
             # Extract vehicles from search results table/rows
@@ -529,15 +414,15 @@ class CopartScraper:
         """
         all_vehicles = []
         
-        # Initialize driver if not already done
-        if not self.driver:
+        # Initialize browser if not already done
+        if not self.page:
             try:
-                self.setup_driver()
+                self.setup_browser()
             except Exception as e:
-                print(f"Error initializing ChromeDriver: {e}")
+                print(f"Error initializing browser: {e}")
                 return all_vehicles
         
-        if not self.driver:
+        if not self.page:
             return all_vehicles
         
         try:
@@ -594,368 +479,10 @@ class CopartScraper:
             import traceback
             traceback.print_exc()
             return all_vehicles
-            
-            # Wait for page to load (Copart may have Cloudflare or login requirements)
-            print("Waiting for page to load...")
-            time.sleep(10)  # Wait longer for Copart to fully load
-            
-            # Wait for content - Copart uses different selectors
-            try:
-                WebDriverWait(self.driver, 30).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR, "a[href*='/lot/'], tr[data-lot-number], .lot-row"))
-                )
-            except:
-                time.sleep(5)  # Additional wait if selector not found
-            
-            # Get rendered page text (after JavaScript execution)
-            try:
-                page_text = self.driver.find_element(By.TAG_NAME, "body").text
-            except:
-                page_text = ""
-            
-            page_source = self.driver.page_source
-            soup = BeautifulSoup(page_source, 'html.parser')
-            
-            # Extract lot numbers using "Lot #" tag and Location/Lane from Copart search results
-            lot_numbers_found = set()
-            lot_data_list = []  # Store lot number with Location/Lane info
-            
-            location_lane_patterns = [
-                r'(?:Location\s*/\s*Lane|Location/Lane)[:\s]+[^<\n]{0,100}?([A-Z]{2})\b',
-                r'(?:Location\s*/\s*Lane|Location/Lane)[:\s]+[^<\n]{0,100}?(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
-                r'Lane[:\s]+[^<\n]{0,100}?(MD|NJ|DC|NY|Maryland|New Jersey|District of Columbia|New York)\b',
-            ]
-            
-            # Method 1: Extract from "Lot #" tag - PRIMARY METHOD
-            lot_hash_elements = soup.find_all(string=re.compile(r'Lot\s*#', re.IGNORECASE))
-            for elem in lot_hash_elements:
-                # Get parent element and its siblings to find lot number
-                parent = elem.find_parent()
-                if parent:
-                    # Get text from parent and nearby elements
-                    parent_text = parent.get_text()
-                    # Also check next sibling
-                    next_sibling = parent.find_next_sibling()
-                    if next_sibling:
-                        parent_text += ' ' + next_sibling.get_text()
-                    # Check parent's parent (table cell or row)
-                    grandparent = parent.find_parent()
-                    if grandparent:
-                        parent_text += ' ' + grandparent.get_text()
-                    
-                    # Extract lot number near "Lot #"
-                    # Pattern: "Lot #" followed by 8 digits
-                    lot_match = re.search(r'Lot\s*#\s*:?\s*(\d{8})', parent_text, re.IGNORECASE)
-                    if lot_match:
-                        lot_num = f'1-{lot_match.group(1)}'
-                        if re.match(r'^1-\d{8}$', lot_num):
-                            # Extract Location/Lane from same context
-                            location_lane_state = "N/A"
-                            
-                            # Look for Location/Lane in the same context
-                            for pattern in location_lane_patterns:
-                                lane_match = re.search(pattern, parent_text, re.IGNORECASE)
-                                if lane_match:
-                                    state_text = lane_match.group(1).strip().upper()
-                                    if state_text in ['MD', 'MARYLAND']:
-                                        location_lane_state = 'MD'
-                                        break
-                                    elif state_text in ['NJ', 'NEW JERSEY']:
-                                        location_lane_state = 'NJ'
-                                        break
-                                    elif state_text in ['DC', 'DISTRICT OF COLUMBIA']:
-                                        location_lane_state = 'DC'
-                                        break
-                                    elif state_text in ['NY', 'NEW YORK']:
-                                        location_lane_state = 'NY'
-                                        break
-                            
-                            # If filtering by location, check Location/Lane
-                            if filter_by_location:
-                                if location_lane_state in ['MD', 'NJ', 'DC', 'NY']:
-                                    lot_numbers_found.add(lot_num)
-                                    lot_data_list.append({
-                                        'lot_number': lot_num,
-                                        'location_lane': location_lane_state
-                                    })
-                            else:
-                                # No filtering, add all lots
-                                lot_numbers_found.add(lot_num)
-                                lot_data_list.append({
-                                    'lot_number': lot_num,
-                                    'location_lane': location_lane_state
-                                })
-            
-            # Method 2: Extract from table rows (if "Lot #" method didn't find enough)
-            if len(lot_numbers_found) < 10:
-                table_rows = soup.find_all('tr')
-                for row in table_rows:
-                    row_text = row.get_text()
-                    # Look for "Lot #" in row
-                    if re.search(r'Lot\s*#', row_text, re.IGNORECASE):
-                        lot_match = re.search(r'Lot\s*#\s*:?\s*(\d{8})', row_text, re.IGNORECASE)
-                        if lot_match:
-                            lot_num = f'1-{lot_match.group(1)}'
-                            if re.match(r'^1-\d{8}$', lot_num):
-                                # Extract Location/Lane from row
-                                location_lane_state = "N/A"
-                                for pattern in location_lane_patterns:
-                                    lane_match = re.search(pattern, row_text, re.IGNORECASE)
-                                    if lane_match:
-                                        state_text = lane_match.group(1).strip().upper()
-                                        if state_text in ['MD', 'MARYLAND']:
-                                            location_lane_state = 'MD'
-                                            break
-                                        elif state_text in ['NJ', 'NEW JERSEY']:
-                                            location_lane_state = 'NJ'
-                                            break
-                                        elif state_text in ['DC', 'DISTRICT OF COLUMBIA']:
-                                            location_lane_state = 'DC'
-                                            break
-                                
-                                # Search URL already filtered for MD/DC/NJ/NY, so add all lots
-                                lot_numbers_found.add(lot_num)
-                                lot_data_list.append({
-                                    'lot_number': lot_num,
-                                    'location_lane': location_lane_state
-                                })
-            
-            # Method 3: Extract from links (href="/lot/XXXXX") - FALLBACK
-            if not lot_numbers_found:
-                lot_links = soup.find_all('a', href=re.compile(r'/lot/\d+'))
-                for link in lot_links:
-                    href = link.get('href', '')
-                    match = re.search(r'/lot/(\d{8})', href)
-                    if match:
-                        lot_num = f'1-{match.group(1)}'
-                        if re.match(r'^1-\d{8}$', lot_num):
-                            # Get parent context for Location/Lane
-                            parent = link.find_parent()
-                            location_lane_state = "N/A"
-                            
-                            if parent:
-                                parent_text = parent.get_text()
-                                # Look for Location/Lane
-                                for pattern in location_lane_patterns:
-                                    lane_match = re.search(pattern, parent_text, re.IGNORECASE)
-                                    if lane_match:
-                                        state_text = lane_match.group(1).strip().upper()
-                                        if state_text in ['MD', 'MARYLAND']:
-                                            location_lane_state = 'MD'
-                                            break
-                                        elif state_text in ['NJ', 'NEW JERSEY']:
-                                            location_lane_state = 'NJ'
-                                            break
-                                        elif state_text in ['DC', 'DISTRICT OF COLUMBIA']:
-                                            location_lane_state = 'DC'
-                                            break
-                            
-                            # Search URL already filtered for MD/DC/NJ, so add all lots
-                            lot_numbers_found.add(lot_num)
-                            lot_data_list.append({
-                                'lot_number': lot_num,
-                                'location_lane': location_lane_state
-                            })
-            
-            # Method 2: Extract from data attributes (data-lot-number, data-lot, etc.)
-            lot_elements = soup.find_all(attrs={'data-lot-number': True})
-            for element in lot_elements:
-                lot_num = element.get('data-lot-number', '').strip()
-                if lot_num:
-                    # Add "1-" prefix if not present
-                    if not lot_num.startswith('1-'):
-                        lot_num = f'1-{lot_num}'
-                    if re.match(r'^1-\d{8}$', lot_num):
-                        lot_numbers_found.add(lot_num)
-            
-            # Method 3: Extract from element IDs (format: 1-XXXXXXXX)
-            lot_elements = soup.find_all('div', id=True)
-            for element in lot_elements:
-                element_id = element.get('id', '')
-                if element_id and re.match(r'^1-\d{8}$', element_id):
-                    lot_numbers_found.add(element_id)
-            
-            # Method 4: Extract from page source using regex
-            lot_pattern = r'\b(1-\d{8})\b'
-            found_lots = re.findall(lot_pattern, page_source)
-            for lot in found_lots:
-                lot_numbers_found.add(lot)
-            
-            # Convert set to list
-            lot_numbers = list(lot_numbers_found)
-            
-            # Try to load more pages (Copart pagination)
-            page_count = 1
-            max_pages = 50  # Increased to get more results
-            previous_count = len(lot_numbers_found)
-            
-            while page_count < max_pages:
-                try:
-                    # Multiple strategies to find Next button
-                    next_button = None
-                    
-                    # Strategy 1: Look for pagination next button by various selectors
-                    next_selectors = [
-                        'a[data-uname="lotsearchPaginationNext"]',
-                        '.pagination-next',
-                        'a.pagination-next',
-                        'button.pagination-next',
-                        'a[aria-label*="Next"]',
-                        'button[aria-label*="Next"]',
-                        'a:contains("Next")',
-                        'button:contains("Next")',
-                        '.next-page',
-                        'a.next',
-                        'button.next'
-                    ]
-                    
-                    for selector in next_selectors:
-                        try:
-                            if ':contains' in selector:
-                                # Use XPath for text contains
-                                text = selector.split(':contains("')[1].split('")')[0]
-                                next_button = self.driver.find_element(By.XPATH, f"//a[contains(text(), '{text}')] | //button[contains(text(), '{text}')]")
-                            else:
-                                next_button = self.driver.find_element(By.CSS_SELECTOR, selector)
-                            
-                            if next_button and next_button.is_enabled() and next_button.is_displayed():
-                                break
-                        except:
-                            continue
-                    
-                    # Strategy 2: Look for page number links and click the next one
-                    if not next_button:
-                        try:
-                            # Find current page number
-                            page_links = self.driver.find_elements(By.CSS_SELECTOR, 'a[data-uname*="pagination"], .pagination a, .page-link')
-                            current_page = page_count
-                            for link in page_links:
-                                link_text = link.text.strip()
-                                if link_text.isdigit() and int(link_text) == current_page + 1:
-                                    next_button = link
-                                    break
-                        except:
-                            pass
-                    
-                    # Strategy 3: Try scrolling and waiting for dynamic content
-                    if not next_button:
-                        # Scroll to bottom to trigger lazy loading
-                        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-                        time.sleep(2)
-                        # Re-extract lots from current page (might have loaded more)
-                        page_source = self.driver.page_source
-                        soup = BeautifulSoup(page_source, 'html.parser')
-                        
-                        # Extract lots using all methods again
-                        lot_hash_elements = soup.find_all(string=re.compile(r'Lot\s*#', re.IGNORECASE))
-                        for elem in lot_hash_elements:
-                            parent = elem.find_parent()
-                            if parent:
-                                parent_text = parent.get_text()
-                                lot_match = re.search(r'Lot\s*#\s*:?\s*(\d{8})', parent_text, re.IGNORECASE)
-                                if lot_match:
-                                    lot_num = f'1-{lot_match.group(1)}'
-                                    if re.match(r'^1-\d{8}$', lot_num):
-                                        lot_numbers_found.add(lot_num)
-                        
-                        # Check if we got new lots
-                        current_count = len(lot_numbers_found)
-                        if current_count > previous_count:
-                            previous_count = current_count
-                            page_count += 1
-                            continue
-                        else:
-                            # No new lots, try to find next button one more time
-                            pass
-                    
-                    # If we found a next button, click it
-                    if next_button:
-                        try:
-                            self.driver.execute_script("arguments[0].scrollIntoView(true);", next_button)
-                            time.sleep(1)
-                            self.driver.execute_script("arguments[0].click();", next_button)
-                            time.sleep(5)  # Wait longer for page to load
-                            
-                            # Re-extract lots from new page
-                            page_source = self.driver.page_source
-                            soup = BeautifulSoup(page_source, 'html.parser')
-                            
-                            # Extract using all methods
-                            lot_hash_elements = soup.find_all(string=re.compile(r'Lot\s*#', re.IGNORECASE))
-                            for elem in lot_hash_elements:
-                                parent = elem.find_parent()
-                                if parent:
-                                    parent_text = parent.get_text()
-                                    lot_match = re.search(r'Lot\s*#\s*:?\s*(\d{8})', parent_text, re.IGNORECASE)
-                                    if lot_match:
-                                        lot_num = f'1-{lot_match.group(1)}'
-                                        if re.match(r'^1-\d{8}$', lot_num):
-                                            lot_numbers_found.add(lot_num)
-                            
-                            # Also extract from links
-                            new_lot_links = soup.find_all('a', href=re.compile(r'/lot/\d+'))
-                            for link in new_lot_links:
-                                href = link.get('href', '')
-                                match = re.search(r'/lot/(\d+)', href)
-                                if match:
-                                    lot_num = f'1-{match.group(1)}'
-                                    if re.match(r'^1-\d{8}$', lot_num):
-                                        lot_numbers_found.add(lot_num)
-                            
-                            # Extract from data attributes
-                            new_lot_elements = soup.find_all(attrs={'data-lot-number': True})
-                            for element in new_lot_elements:
-                                lot_num = element.get('data-lot-number', '').strip()
-                                if lot_num:
-                                    if not lot_num.startswith('1-'):
-                                        lot_num = f'1-{lot_num}'
-                                    if re.match(r'^1-\d{8}$', lot_num):
-                                        lot_numbers_found.add(lot_num)
-                            
-                            # Extract from page source regex
-                            lot_pattern = r'\b(1-\d{8})\b'
-                            found_lots = re.findall(lot_pattern, page_source)
-                            for lot in found_lots:
-                                lot_numbers_found.add(lot)
-                            
-                            current_count = len(lot_numbers_found)
-                            if current_count > previous_count:
-                                print(f"  Page {page_count + 1}: Found {current_count - previous_count} new lots (Total: {current_count})")
-                                previous_count = current_count
-                                page_count += 1
-                            else:
-                                # No new lots found, stop pagination
-                                print(f"  No new lots on page {page_count + 1}, stopping pagination")
-                                break
-                        except Exception as e:
-                            print(f"  Error clicking next button: {str(e)}")
-                            break
-                    else:
-                        # No next button found, stop pagination
-                        print(f"  No next button found on page {page_count}, stopping pagination")
-                        break
-                except Exception as e:
-                    print(f"  Error during pagination: {str(e)}")
-                    break
-            
-            unique_lots = sorted(list(set(lot_numbers_found)))
-            
-            # Initialize cache (Location/Lane will be extracted from individual lot pages)
-            self.lot_data_cache = {}
-            
-            print(f"Found {len(unique_lots)} unique lot numbers from Copart search results")
-            print("Note: Search URL already filtered for MD/DC/NJ/NY states")
-            print("      Individual lot pages will be scraped for full details")
-            
-            return unique_lots
-            
-        except Exception as e:
-            print(f"Error extracting lot numbers: {str(e)}")
-            return lot_numbers
     
     def scrape_copart_lot(self, lot_number):
         """Scrape a single Copart lot page"""
-        if not self.driver:
+        if not self.page:
             return None
         
         try:
@@ -966,27 +493,25 @@ class CopartScraper:
             copart_url = f"https://www.copart.com/lot/{lot_number}"
             print(f"Scraping Copart lot: {lot_number}")
             
-            self.driver.get(copart_url)
-            time.sleep(2)  # Reduced from 3 to 2 seconds
+            self.page.goto(copart_url, wait_until='networkidle', timeout=30000)
+            time.sleep(2)
             
             try:
-                WebDriverWait(self.driver, 10).until(
-                    EC.presence_of_element_located((By.TAG_NAME, "body"))
-                )
+                self.page.wait_for_selector('body', timeout=10000)
             except:
                 pass
             
-            time.sleep(1)  # Reduced from 2 to 1 second
+            time.sleep(1)
             
-            page_source = self.driver.page_source
+            page_source = self.page.content()
             soup = BeautifulSoup(page_source, 'html.parser')
             
-            # Optimized body text extraction using JavaScript
+            # Optimized body text extraction
             try:
-                body_text = self.driver.execute_script("return document.body.innerText || document.body.textContent || ''")
+                body_text = self.page.evaluate("() => document.body.innerText || document.body.textContent || ''")
             except:
                 try:
-                    body_text = self.driver.find_element(By.TAG_NAME, "body").text
+                    body_text = self.page.locator('body').inner_text()
                 except:
                     body_text = page_source
             
@@ -1661,7 +1186,7 @@ class CopartScraper:
         """Scrape multiple Copart lots (optimized for speed)"""
         vehicles = []
         
-        if not self.driver:
+        if not self.page:
             return vehicles
         
         total_to_scrape = min(len(lot_numbers), limit)
@@ -1690,18 +1215,10 @@ class CopartScraper:
 
 
 def extract_lot_numbers_from_bidcars():
-    """Extract all lot numbers from bid.cars"""
-    scraper = None
-    try:
-        scraper = CopartScraper()
-        lot_numbers = scraper.extract_lot_numbers_from_bidcars()
-        return lot_numbers
-    except Exception as e:
-        print(f"Error extracting lot numbers: {str(e)}")
-        return []
-    finally:
-        if scraper:
-            scraper.close()
+    """Extract all lot numbers from bid.cars (DEPRECATED - not used)"""
+    # This function is deprecated - we now use extract_vehicles_from_search_results
+    print("Warning: extract_lot_numbers_from_bidcars is deprecated")
+    return []
 
 
 def scrape_copart_vehicles_from_lots(lot_numbers, limit=100):

@@ -8,9 +8,9 @@ app = Flask(__name__)
 # Store cached data
 cached_data = []
 
-# Lazy import to avoid ChromeDriver initialization on startup
+# Lazy import to avoid Playwright browser initialization on startup
 def get_scraper():
-    """Lazy import of scraper to avoid ChromeDriver issues on startup"""
+    """Lazy import of scraper to avoid Playwright browser initialization on startup"""
     try:
         from scraper import scrape_copart_corolla
         return scrape_copart_corolla

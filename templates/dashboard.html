@@ -322,7 +322,7 @@
             .vehicle-card-image-container {
                 position: relative;
                 width: 100%;
-                height: 200px;
+                height: 250px;
                 overflow: hidden;
                 background: #f0f0f0;
             }
@@ -343,6 +343,10 @@
                 image-rendering: -webkit-optimize-contrast;
                 image-rendering: crisp-edges;
                 image-rendering: high-quality;
+                -webkit-backface-visibility: hidden;
+                backface-visibility: hidden;
+                -webkit-transform: translateZ(0);
+                transform: translateZ(0);
             }
 
             .vehicle-card-image-nav {

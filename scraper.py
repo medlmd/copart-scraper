@@ -758,6 +758,7 @@ class CopartScraper:
                     pass
             
             # Method 1b: Also use BeautifulSoup to find images with these classes
+            # Look for images with classes: zoomImgElement p-image-item-box img-responsive ng-star-inserted
             img_tags = soup.find_all('img', class_=lambda x: x and ('zoomImgElement' in str(x) or 'p-image-item-box' in str(x) or 'img-responsive' in str(x) or 'ng-star-inserted' in str(x)))
             print(f"      Found {len(img_tags)} img tags with CSS classes using BeautifulSoup")
             for img in img_tags:

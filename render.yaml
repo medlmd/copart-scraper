@@ -2,14 +2,14 @@ services:
   - type: web
     name: copart-scraper
     env: python
-    runtime: python-3.11
+    runtime: python-3.12
     buildCommand: python3 --version && python3 -m pip install --upgrade pip setuptools wheel && bash build.sh
     startCommand: gunicorn -w 1 -b 0.0.0.0:$PORT --timeout 600 --preload app:app
     envVars:
       - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "3.12.0"
       - key: RUNTIME_VERSION
-        value: "3.11"
+        value: "3.12"
       - key: BROWSERLESS_URL
         value: wss://chrome.browserless.io
       # BROWSERLESS_TOKEN should be set in Render dashboard (not in YAML for security)

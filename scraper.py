@@ -623,35 +623,26 @@ class CopartScraper:
                                 if clean_url.startswith('http') and 'copart' in clean_url.lower():
                                     high_quality_images.append(clean_url)
                             
-                            # Store cleaned high-quality images
-                            vehicle["images"] = high_quality_images
-                            print(f"      ✅ Found {len(high_quality_images)} high-quality images (cleaned for max quality)")
-                            print(f"      📸 Image URLs for lot {lot_number}:")
-                            for idx, img_url in enumerate(high_quality_images, 1):
-                                print(f"         {idx}. {img_url}")
+                            # Store only the first image
+                            vehicle["images"] = high_quality_images[:1] if high_quality_images else []
+                            print(f"      ✅ Found {len(high_quality_images)} high-quality images, keeping first image only")
+                            if vehicle["images"]:
+                                print(f"      📸 First image URL for lot {lot_number}: {vehicle['images'][0]}")
                         else:
-                            # Fallback to default high-quality URLs
-                            default_images = []
-                            for img_num in range(1, 11):
-                                default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
-                            vehicle["images"] = default_images
-                            print(f"      ⚠️  Using default high-quality image URLs ({len(default_images)} images)")
-                            print(f"      📸 Default image URLs for lot {lot_number}:")
-                            for idx, img_url in enumerate(default_images, 1):
-                                print(f"         {idx}. {img_url}")
+                            # Fallback to default high-quality URL (first image only)
+                            first_default_image = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_1.jpg"
+                            vehicle["images"] = [first_default_image]
+                            print(f"      ⚠️  Using default high-quality image URL (first image only)")
+                            print(f"      📸 Default image URL for lot {lot_number}: {first_default_image}")
                     except Exception as e:
                         print(f"      ⚠️  Error fetching images: {e}")
                         import traceback
                         traceback.print_exc()
-                        # Fallback to default high-quality URLs
-                        default_images = []
-                        for img_num in range(1, 11):
-                            default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
-                        vehicle["images"] = default_images
-                        print(f"      ✅ Using fallback high-quality URLs ({len(default_images)} images)")
-                        print(f"      📸 Fallback image URLs for lot {lot_number}:")
-                        for idx, img_url in enumerate(default_images, 1):
-                            print(f"         {idx}. {img_url}")
+                        # Fallback to default high-quality URL (first image only)
+                        first_default_image = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_1.jpg"
+                        vehicle["images"] = [first_default_image]
+                        print(f"      ✅ Using fallback high-quality URL (first image only)")
+                        print(f"      📸 Fallback image URL for lot {lot_number}: {first_default_image}")
                 else:
                     # Vehicle has no lot number - use empty images
                     vehicle["images"] = []
@@ -1008,15 +999,13 @@ class CopartScraper:
                 if img not in seen:
                     seen.add(img)
                     unique_images.append(img)
-            vehicle["images"] = unique_images
+            # Keep only the first image
+            vehicle["images"] = unique_images[:1] if unique_images else []
             
-            # If no images found, use default high-quality Copart image URLs
+            # If no images found, use default high-quality Copart image URL (first image only)
             if not vehicle["images"]:
-                # Try multiple image numbers (1-5) for best coverage
-                default_images = []
-                for img_num in range(1, 6):
-                    default_images.append(f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_{img_num}.jpg")
-                vehicle["images"] = default_images
+                first_default_image = f"https://cs.copart.com/v1/AUTH_svc.pdoc/00000/{lot_number}/full/{lot_number}_1.jpg"
+                vehicle["images"] = [first_default_image]
             
             # Extract Year - Look for "Year" tag on the page
             year = None

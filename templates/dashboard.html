@@ -692,83 +692,12 @@
             const isMobile = window.innerWidth <= 768;
 
             if (isMobile) {
-                // Mobile: Card-based layout with images
+                // Mobile: Card-based layout (no images)
                 let html = '';
                 vehicles.forEach((vehicle, index) => {
                     const cardId = `vehicle-card-${index}`;
-                    const images = vehicle.images || [];
-                    const hasImages = images.length > 0;
                     
                     html += `<div class="vehicle-card" id="${cardId}">`;
-                    
-                    // Image carousel
-                    if (hasImages) {
-                        html += '<div class="vehicle-card-image-container">';
-                        html += '<div class="vehicle-card-images" id="' + cardId + '-images">';
-                        images.forEach((img, imgIndex) => {
-                            // CRITICAL: Ensure MAXIMUM quality for EVERY image - reconstruct Copart URLs
-                            let highQualityImg = String(img).trim();
-                            
-                            // CRITICAL: For Copart CDN images, reconstruct to maximum quality format
-                            if (highQualityImg.includes('cs.copart.com')) {
-                                // Extract lot number and image number from URL
-                                // Pattern: https://cs.copart.com/v1/AUTH_svc.pdoc/{account}/{lot}/{size}/{lot}_{num}.jpg
-                                const copartMatch = highQualityImg.match(/cs\.copart\.com\/v1\/AUTH_svc\.pdoc\/(\d+)\/(\d+)\/(?:thumb|small|medium|large|full)\/(\d+)_(\d+)\.jpg/i);
-                                if (copartMatch) {
-                                    const account = copartMatch[1];
-                                    const lotNum = copartMatch[2];
-                                    const lotNum2 = copartMatch[3];
-                                    const imgNum = copartMatch[4];
-                                    // Reconstruct to maximum quality format: /00000/{lot}/full/{lot}_{num}.jpg
-                                    highQualityImg = `https://cs.copart.com/v1/AUTH_svc.pdoc/00000/${lotNum}/full/${lotNum}_${imgNum}.jpg`;
-                                } else {
-                                    // Fallback: replace size paths and fix account number
-                                    highQualityImg = highQualityImg.replace(/\/(thumb|small|medium|large)\//gi, '/full/');
-                                    highQualityImg = highQualityImg.replace(/\/v1\/AUTH_svc\.pdoc\/\d+\/(\d+)\//, '/v1/AUTH_svc.pdoc/00000/$1/');
-                                }
-                            } else {
-                                // For non-Copart images, replace size paths
-                                highQualityImg = highQualityImg.replace(/\/thumb\//gi, '/full/');
-                                highQualityImg = highQualityImg.replace(/\/small\//gi, '/full/');
-                                highQualityImg = highQualityImg.replace(/\/medium\//gi, '/full/');
-                                highQualityImg = highQualityImg.replace(/\/large\//gi, '/full/');
-                            }
-                            
-                            // Remove ALL size/quality/scale/resize parameters
-                            highQualityImg = highQualityImg.replace(/[?&](width|height|w|h|size|quality|scale|resize|maxwidth|maxheight)=\d+/gi, '');
-                            
-                            // Remove query string entirely for maximum quality
-                            if (highQualityImg.includes('?')) {
-                                highQualityImg = highQualityImg.split('?')[0];
-                            }
-                            
-                            // Add image with MAXIMUM quality
-                            // Validate URL before adding - ensure it's a proper image URL
-                            const invalidPatterns = ['railway.app', 'web-production', '/lot/', 'copart.com/lot', 'localhost'];
-                            const isValidImageUrl = highQualityImg && 
-                                highQualityImg.startsWith('http') && 
-                                (highQualityImg.includes('.jpg') || highQualityImg.includes('.jpeg') || highQualityImg.includes('.png') || highQualityImg.includes('cs.copart.com')) &&
-                                !invalidPatterns.some(pattern => highQualityImg.toLowerCase().includes(pattern));
-                            
-                            if (isValidImageUrl) {
-                                html += `<img src="${highQualityImg}" alt="Vehicle ${imgIndex + 1}" class="vehicle-card-image" loading="lazy" onerror="this.style.display=\'none\'; this.nextElementSibling && (this.nextElementSibling.style.display=\'block\');">`;
-                                html += `<div class="image-error-placeholder" style="display:none; width:100%; height:250px; background:#f0f0f0; display:flex; align-items:center; justify-content:center; color:#999; font-size:14px;">Image unavailable</div>`;
-                            }
-                        });
-                        html += '</div>';
-                        
-                        if (images.length > 1) {
-                            html += `<button class="vehicle-card-image-nav prev" onclick="slideImage('${cardId}', -1)">‹</button>`;
-                            html += `<button class="vehicle-card-image-nav next" onclick="slideImage('${cardId}', 1)">›</button>`;
-                            html += '<div class="vehicle-card-image-dots" id="' + cardId + '-dots">';
-                            images.forEach((_, imgIndex) => {
-                                html += `<button class="vehicle-card-image-dot ${imgIndex === 0 ? 'active' : ''}" onclick="goToImage('${cardId}', ${imgIndex})"></button>`;
-                            });
-                            html += '</div>';
-                        }
-                        html += '</div>';
-                    }
-                    
                     html += '<div class="vehicle-card-content">';
                     html += '<div class="vehicle-card-header">';
                     html += `<div><div class="vehicle-card-title">${vehicle.year || 'N/A'} ${vehicle.make || ''} ${vehicle.model || ''}</div>`;
@@ -804,9 +733,6 @@
                     html += '</div></div>';
                 });
                 content.innerHTML = html;
-                
-                // Initialize swipe gestures for image carousels
-                initializeImageCarousels();
             } else {
                 // Desktop: Table layout
                 let html = '<div class="table-container"><table><thead><tr>';
@@ -840,94 +766,6 @@
             }
         }
 
-        // Image carousel functions
-        const carouselStates = {};
-        
-        function initializeImageCarousels() {
-            document.querySelectorAll('.vehicle-card-image-container').forEach(container => {
-                const cardId = container.closest('.vehicle-card').id;
-                const imagesContainer = container.querySelector('.vehicle-card-images');
-                const images = imagesContainer.querySelectorAll('.vehicle-card-image');
-                
-                if (images.length <= 1) return;
-                
-                carouselStates[cardId] = {
-                    currentIndex: 0,
-                    totalImages: images.length
-                };
-                
-                // Add touch/swipe support
-                let startX = 0;
-                let currentX = 0;
-                let isDragging = false;
-                
-                container.addEventListener('touchstart', (e) => {
-                    startX = e.touches[0].clientX;
-                    isDragging = true;
-                });
-                
-                container.addEventListener('touchmove', (e) => {
-                    if (!isDragging) return;
-                    currentX = e.touches[0].clientX;
-                    const diff = currentX - startX;
-                    imagesContainer.style.transform = `translateX(calc(-${carouselStates[cardId].currentIndex * 100}% + ${diff}px))`;
-                });
-                
-                container.addEventListener('touchend', () => {
-                    if (!isDragging) return;
-                    isDragging = false;
-                    const diff = currentX - startX;
-                    const threshold = 50;
-                    
-                    if (Math.abs(diff) > threshold) {
-                        if (diff > 0 && carouselStates[cardId].currentIndex > 0) {
-                            slideImage(cardId, -1);
-                        } else if (diff < 0 && carouselStates[cardId].currentIndex < carouselStates[cardId].totalImages - 1) {
-                            slideImage(cardId, 1);
-                        } else {
-                            updateCarouselPosition(cardId);
-                        }
-                    } else {
-                        updateCarouselPosition(cardId);
-                    }
-                });
-            });
-        }
-        
-        function slideImage(cardId, direction) {
-            if (!carouselStates[cardId]) return;
-            
-            const newIndex = carouselStates[cardId].currentIndex + direction;
-            if (newIndex < 0 || newIndex >= carouselStates[cardId].totalImages) return;
-            
-            carouselStates[cardId].currentIndex = newIndex;
-            updateCarouselPosition(cardId);
-        }
-        
-        function goToImage(cardId, index) {
-            if (!carouselStates[cardId] || index < 0 || index >= carouselStates[cardId].totalImages) return;
-            
-            carouselStates[cardId].currentIndex = index;
-            updateCarouselPosition(cardId);
-        }
-        
-        function updateCarouselPosition(cardId) {
-            const card = document.getElementById(cardId);
-            if (!card) return;
-            
-            const imagesContainer = card.querySelector('.vehicle-card-images');
-            const dots = card.querySelectorAll('.vehicle-card-image-dot');
-            
-            if (imagesContainer) {
-                imagesContainer.style.transform = `translateX(-${carouselStates[cardId].currentIndex * 100}%)`;
-            }
-            
-            if (dots) {
-                dots.forEach((dot, index) => {
-                    dot.classList.toggle('active', index === carouselStates[cardId].currentIndex);
-                });
-            }
-        }
 
         // Load data on page load
         window.addEventListener('load', () => {

@@ -507,7 +507,7 @@ class CopartScraper:
         
         try:
             # Search 1: MD, DC, NJ (20 cars)
-            search_url_md_dc_nj = "https://www.copart.com/lotSearchResults?free=true&query=&qId=51ad8d38-cfcc-485f-8336-1d845c5583df-1769321379269&index=0&searchCriteria=%7B%22query%22:%5B%22*%22%5D,%22filter%22:%7B%22TITL%22:%5B%22title_group_code:TITLEGROUP_S%22%5D,%22LOC%22:%5B%22yard_name:%5C%22DC%20-%20WASHINGTON%20DC%5C%22%22,%22yard_name:%5C%22MD%20-%20BALTIMORE%5C%22%22,%22yard_name:%5C%22MD%20-%20BALTIMORE%20EAST%5C%22%22,%22yard_name:%5C%22NJ%20-%20GLASSBORO%20EAST%5C%22%22,%22yard_name:%5C%22NJ%20-%20SOMERVILLE%5C%22%22,%22yard_name:%5C%22NJ%20-%20TRENTON%5C%22%22%5D,%22MAKE%22:%5B%22lot_make_desc:%5C%22TOYOTA%5C%22%22%5D,%22MODL%22:%5B%22manufacturer_model_desc:%5C%22COROLLA%5C%22%22%5D,%22PRID%22:%5B%22damage_type_code:DAMAGECODE_FR%22,%22damage_type_code:DAMAGECODE_RR%22,%22damage_type_code:DAMAGECODE_SD%22%5D,%22YEAR%22:%5B%22lot_year:%5B2017%20TO%202023%5D%22%5D,%22FETI%22:%5B%22lot_condition_code:CERT-D%22%5D%7D,%22searchName%22:%22%22,%22watchListOnly%22:false,%22freeFormSearch%22:false%7D"
+            search_url_md_dc_nj = "https://www.copart.com/lotSearchResults?free=true&query=&qId=d26e8402-b785-43f7-921c-a63990404e77-1773372919072&index=0&searchCriteria=%7B%22query%22:%5B%22*%22%5D,%22filter%22:%7B%22FETI%22:%5B%22lot_condition_code:CERT-D%22%5D,%22LOC%22:%5B%22yard_name:%5C%22MD%20-%20BALTIMORE%5C%22%22,%22yard_name:%5C%22MD%20-%20BALTIMORE%20EAST%5C%22%22,%22yard_name:%5C%22NJ%20-%20SOMERVILLE%5C%22%22,%22yard_name:%5C%22NJ%20-%20TRENTON%5C%22%22,%22yard_name:%5C%22NY%20-%20SYRACUSE%5C%22%22,%22yard_name:%5C%22DC%20-%20WASHINGTON%20DC%5C%22%22%5D,%22MAKE%22:%5B%22lot_make_desc:%5C%22TOYOTA%5C%22%22%5D,%22MODL%22:%5B%22lot_model_desc:%5C%22COROLLA%5C%22%22%5D,%22NLTS%22:%5B%22expected_sale_assigned_ts_utc:%5BNOW%2FDAY-7DAY%20TO%20NOW%2FDAY%5D%22%5D,%22ODM%22:%5B%22odometer_reading_received:%5B0%20TO%20108000%5D%22%5D,%22PRID%22:%5B%22damage_type_code:DAMAGECODE_FR%22,%22damage_type_code:DAMAGECODE_RR%22,%22damage_type_code:DAMAGECODE_SD%22%5D,%22TITL%22:%5B%22title_group_code:TITLEGROUP_S%22%5D,%22YEAR%22:%5B%22lot_year:%5B2020%20TO%202026%5D%22%5D%7D,%22watchListOnly%22:false,%22searchName%22:%22%22,%22freeFormSearch%22:false%7D"
             
             print("  Starting search 1: MD/DC/NJ...")
             vehicles_1 = self.extract_vehicles_from_search_url(
@@ -519,16 +519,7 @@ class CopartScraper:
             all_vehicles.extend(vehicles_1)
             
             # Search 2: NY (20 cars)
-            search_url_ny = "https://www.copart.com/lotSearchResults?free=true&query=&qId=51ad8d38-cfcc-485f-8336-1d845c5583df-1769321379269&index=0&searchCriteria=%7B%22query%22:%5B%22*%22%5D,%22filter%22:%7B%22TITL%22:%5B%22title_group_code:TITLEGROUP_S%22%5D,%22LOC%22:%5B%22yard_name:%5C%22NY%20-%20ALBANY%5C%22%22,%22yard_name:%5C%22NY%20-%20BUFFALO%5C%22%22,%22yard_name:%5C%22NY%20-%20NEW%20YORK%5C%22%22,%22yard_name:%5C%22NY%20-%20ROCHESTER%5C%22%22,%22yard_name:%5C%22NY%20-%20SYRACUSE%5C%22%22%5D,%22MAKE%22:%5B%22lot_make_desc:%5C%22TOYOTA%5C%22%22%5D,%22MODL%22:%5B%22manufacturer_model_desc:%5C%22COROLLA%5C%22%22%5D,%22PRID%22:%5B%22damage_type_code:DAMAGECODE_FR%22,%22damage_type_code:DAMAGECODE_RR%22,%22damage_type_code:DAMAGECODE_SD%22%5D,%22YEAR%22:%5B%22lot_year:%5B2017%20TO%202023%5D%22%5D,%22FETI%22:%5B%22lot_condition_code:CERT-D%22%5D%7D,%22searchName%22:%22%22,%22watchListOnly%22:false,%22freeFormSearch%22:false%7D"
             
-            print("  Starting search 2: NY...")
-            vehicles_2 = self.extract_vehicles_from_search_url(
-                search_url_ny, 
-                limit=20, 
-                description="NY"
-            )
-            print(f"  Search 2 returned {len(vehicles_2)} vehicles")
-            all_vehicles.extend(vehicles_2)
             
             # Filter vehicles by location, title, and odometer
             filtered_vehicles = []
